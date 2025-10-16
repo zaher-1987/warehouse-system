@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Create Ticket</title>
+  <meta charset="UTF-8" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 30px;
+      max-width: 600px;
+      margin: auto;
+    }
+    h1 {
+      text-align: center;
+    }
+    label {
+      display: block;
+      margin-top: 15px;
+    }
+    input, select {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+    }
+    button {
+      margin-top: 20px;
+      padding: 10px;
+      background-color: #0a74da;
+      color: white;
+      border: none;
+      width: 100%;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #004a99;
+    }
+  </style>
+</head>
+<body>
+  <h1>📋 Production Request Ticket</h1>
+  <form id="ticketForm">
+    <label for="warehouse">Warehouse:</label>
+    <select id="warehouse" name="warehouse_id" required></select>
+
+    <label for="item">Item:</label>
+    <select id="item" name="item_id" required></select>
+
+    <label for="quantity">Quantity:</label>
+    <input type="number" id="quantity" name="quantity" required />
+
+    <label for="requestDate">Request Date:</label>
+    <input type="date" id="requestDate" name="request_date" required />
+
+    <label for="collectDate">Collect Date:</label>
+    <input type="date" id="collectDate" name="collect_date" required />
+
+    <button type="submit">Submit Ticket</button>
+  </form>
+
+  <script>
+    const warehouseSelect = document.getElementById("warehouse");
+    const itemSelect = document.getElementById("item");
+
+    // Load Warehouses
+    fetch('/warehouses')
+      .then(res => res.json())
+      .then(data => {
+        data.forEach(wh => {
+          const option = document.createElement('option');
+          option.value = wh.id;
+          option.textContent = `${wh.name} (${wh.country})`;
+          warehouseSelect.appendChild(option);
+        });
+      });
+
+    // Load Items
+    fetch('/items')
+      .then(res => res.json())
+      .then(data => {
+        data.forEach(item => {
+          const option = document.createElement('option');
+          option.value = item.item_id;
+          option.textContent = `${item.item_id} - ${item.name}`;
+          itemSelect.appendChild(option);
+        });
+      });
+
+    // Handle Form Submit
+    document.getElementById("ticketForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+
+      const formData = {
+        warehouse_id: Number(warehouseSelect.value),
+        item_id: itemSelect.value,
+        quantity: Number(document.getElementById("quantity").value),
+        request_date: document.getElementById("requestDate").value,
+        collect_date: document.getElementById("collectDate").value,
+        status: "pending",
+        created_by: "warehouse-manager" // static for now
+      };
+
+      fetch('/tickets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      })
+      .then(res => res.json())
+      .then(data => {
+        alert("✅ Ticket submitted!");
+        document.getElementById("ticketForm").reset();
+      })
+      .catch(err => {
+        alert("❌ Failed to submit ticket.");
+        console.error(err);
+      });
+    });
+  </script>
+</body>
+</html>

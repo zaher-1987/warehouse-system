@@ -1,0 +1,75 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Tickets Overview</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f9f9f9;
+      padding: 40px;
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 12px;
+      text-align: center;
+    }
+    th {
+      background-color: #f4f4f4;
+    }
+  </style>
+</head>
+<body>
+  <h2>📋 Tickets Overview</h2>
+  <table id="ticketsTable">
+    <thead>
+      <tr>
+        <th>From Warehouse</th>
+        <th>To Warehouse</th>
+        <th>Item ID</th>
+        <th>Quantity</th>
+        <th>Request Date</th>
+        <th>Collect Date</th>
+        <th>Status</th>
+        <th>Created By</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    fetch('/tickets')
+      .then(response => response.json())
+      .then(tickets => {
+        const table = document.querySelector("#ticketsTable tbody");
+        table.innerHTML = "";
+        tickets.forEach(ticket => {
+          table.innerHTML += `
+            <tr>
+              <td>${ticket.from_warehouse || '-'}</td>
+              <td>${ticket.to_warehouse || '-'}</td>
+              <td>${ticket.item_id}</td>
+              <td>${ticket.quantity}</td>
+              <td>${ticket.request_date}</td>
+              <td>${ticket.collect_date}</td>
+              <td>${ticket.status}</td>
+              <td>${ticket.created_by}</td>
+            </tr>
+          `;
+        });
+      });
+  </script>
+</body>
+</html>

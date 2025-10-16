@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Update Ticket</title>
+  <meta charset="UTF-8" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 30px;
+      max-width: 600px;
+      margin: auto;
+    }
+    label {
+      display: block;
+      margin-top: 15px;
+    }
+    input, select, textarea {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+    }
+    button {
+      margin-top: 20px;
+      padding: 10px;
+      width: 100%;
+      background-color: #0a74da;
+      color: white;
+      border: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔧 Update Ticket</h1>
+  <form id="updateForm">
+    <label>Available Quantity:</label>
+    <input type="number" id="available" required>
+
+    <label>Balance Needed:</label>
+    <input type="number" id="balance" required>
+
+    <label>Time Needed (e.g., 3 days):</label>
+    <input type="text" id="time" required>
+
+    <label>Expected Ready Date:</label>
+    <input type="date" id="expected" required>
+
+    <label>Actual Ready Date:</label>
+    <input type="date" id="actual" required>
+
+    <label>Delay Reason / Notes:</label>
+    <textarea id="delay_reason" rows="4" placeholder="e.g., Machine A failed, supplier needs 5 days to fix..."></textarea>
+
+    <label>Ticket Status:</label>
+    <select id="status" required>
+      <option value="open">Open</option>
+      <option value="delayed">Delayed</option>
+      <option value="closed">Closed</option>
+    </select>
+
+    <button type="submit">Submit Update</button>
+  </form>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const ticketId = urlParams.get("id");
+
+    document.getElementById("updateForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+
+      const updatedTicket = {
+        available_quantity: Number(document.getElementById("available").value),
+        balance_needed: Number(document.getElementById("balance").value),
+        time_needed: document.getElementById("time").value,
+        expected_ready: document.getElementById("expected").value,
+        actual_ready: document.getElementById("actual").value,
+        delay_reason: document.getElementById("delay_reason").value,
+        status: document.getElementById("status").value
+      };
+
+      fetch(`/tickets/${ticketId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(updatedTicket)
+      })
+      .then(res => res.json())
+      .then(data => {
+        alert("✅ Ticket updated!");
+        window.location.href = "/tickets.html";
+      })
+      .catch(err => {
+        alert("❌ Failed to update ticket.");
+        console.error(err);
+      });
+    });
+  </script>
+</body>
+</html>

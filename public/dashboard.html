@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>📦 Warehouse Dashboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 30px;
+      background: #f4f6f8;
+    }
+    h2 {
+      margin-bottom: 20px;
+    }
+    select {
+      padding: 6px 10px;
+      margin-right: 10px;
+    }
+    button {
+      padding: 8px 16px;
+      background: #198754;
+      color: white;
+      border: none;
+      cursor: pointer;
+      border-radius: 4px;
+      margin-bottom: 20px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 10px;
+      text-align: left;
+    }
+    th {
+      background: #f2f2f2;
+      cursor: pointer;
+    }
+    .green {
+      background-color: #d4edda;
+      color: #155724;
+    }
+    .orange {
+      background-color: #fff3cd;
+      color: #856404;
+    }
+    .red {
+      background-color: #f8d7da;
+      color: #721c24;
+    }
+    .unknown {
+      background-color: #e2e3e5;
+      color: #6c757d;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 999;
+      left: 0; top: 0;
+      width: 100%; height: 100%;
+      background-color: rgba(0,0,0,0.5);
+    }
+    .modal-content {
+      background: white;
+      margin: 10% auto;
+      padding: 20px;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 900px;
+      height: 600px;
+      position: relative;
+    }
+    .close {
+      position: absolute;
+      top: 10px; right: 15px;
+      font-size: 24px;
+      cursor: pointer;
+    }
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+  </style>
+</head>
+<body>
+  <h2>📦 Warehouse Inventory Dashboard</h2>
+
+  <label for="warehouseFilter">Filter by Warehouse:</label>
+  <select id="warehouseFilter">
+    <option value="">All</option>
+  </select>
+
+  <button onclick="exportInventory()">📁 Export to Excel</button>
+  <button onclick="openChartModal()">📊 View Charts</button>
+  <button onclick="toggleEditMode()" id="editToggle">✏️ Enable Edit Mode</button>
+
+  <table id="inventoryTable">
+    <thead>
+      <tr>
+        <th>Warehouse</th>
+        <th>Item ID</th>
+        <th>Item Name</th>
+        <th>Quantity</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <div id="chartModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeChartModal()">×</span>
+      <iframe src="warehouse-charts.html"></iframe>
+    </div>
+  </div>
+
+<script>
+let editMode = false;
+
+function toggleEditMode() {
+  editMode = !editMode;
+  document.getElementById('editToggle').textContent = editMode ? '🚫 Disable Edit Mode' : '✏️ Enable Edit Mode';
+  loadInventory();
+}
+
+async function loadInventory() {
+  const res = await fetch('/inventory-status');
+  const data = await res.json();
+  const tbody = document.querySelector('#inventoryTable tbody');
+  const filter = document.getElementById('warehouseFilter').value;
+
+  let warehouses = new Set();
+  tbody.innerHTML = '';
+
+  data.forEach(item => {
+    warehouses.add(item.warehouse_name);
+
+    if (!filter || item.warehouse_name === filter) {
+      const tr = document.createElement('tr');
+
+      const validStatuses = ['green', 'orange', 'red'];
+      const cssClass = validStatuses.includes(item.status) ? item.status : 'unknown';
+      tr.classList.add(cssClass);
+
+      let statusIcon = '';
+      switch (item.status) {
+        case 'green': statusIcon = '<span title="Stock OK (≥ 60%)">✅</span>'; break;
+        case 'orange': statusIcon = '<span title="Low stock (≤ 60%)">⚠️</span>'; break;
+        case 'red': statusIcon = '<span title="Urgent! Critically low (≤ 10%)">❌</span>'; break;
+        default: statusIcon = '<span title="Unknown">❓</span>';
+      }
+
+      tr.innerHTML = `
+        <td>${item.warehouse_name}</td>
+        <td>${item.item_id}</td>
+        <td contenteditable="${editMode}" data-field="name">${item.name}</td>
+        <td contenteditable="${editMode}" data-field="quantity">${item.quantity}</td>
+        <td>${statusIcon}</td>
+        ${editMode ? '<td><button onclick="saveItem(this)">💾 Save</button></td>' : ''}
+      `;
+
+      tbody.appendChild(tr);
+    }
+  });
+
+  const warehouseSelect = document.getElementById('warehouseFilter');
+  warehouseSelect.innerHTML = '<option value="">All</option>';
+  [...warehouses].forEach(w => {
+    warehouseSelect.innerHTML += `<option value="${w}">${w}</option>`;
+  });
+}
+
+async function saveItem(btn) {
+  const row = btn.closest('tr');
+  const warehouse = row.children[0].textContent.trim();
+  const item_id = row.children[1].textContent.trim();
+  const name = row.querySelector('[data-field="name"]').textContent.trim();
+  const quantity = parseInt(row.querySelector('[data-field="quantity"]').textContent.trim());
+
+  const res = await fetch('/update-item', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ warehouse, item_id, name, quantity })
+  });
+
+  const result = await res.json();
+  if (result.success) {
+    btn.disabled = true;
+    btn.textContent = '✔️ Saved';
+    row.style.backgroundColor = '#d1e7dd';
+    setTimeout(() => {
+      row.style.backgroundColor = '';
+      btn.disabled = false;
+      btn.textContent = '💾 Save';
+      loadInventory(); // 🔁 Reloads status + quantity
+    }, 1000);
+  } else {
+    alert('❌ Update failed: ' + result.message);
+  }
+}
+
+function exportInventory() {
+  window.location.href = '/export-inventory';
+}
+
+function openChartModal() {
+  document.getElementById('chartModal').style.display = 'block';
+}
+
+function closeChartModal() {
+  document.getElementById('chartModal').style.display = 'none';
+}
+
+document.getElementById('warehouseFilter').addEventListener('change', loadInventory);
+loadInventory();
+setInterval(loadInventory, 30000);
+
+document.querySelectorAll('#inventoryTable th').forEach((header, index) => {
+  header.addEventListener('click', () => {
+    const rows = [...document.querySelectorAll('#inventoryTable tbody tr')];
+    const sortedRows = rows.sort((a, b) => {
+      const aText = a.children[index].textContent.trim();
+      const bText = b.children[index].textContent.trim();
+      return aText.localeCompare(bText, undefined, { numeric: true });
+    });
+    const tbody = document.querySelector('#inventoryTable tbody');
+    tbody.innerHTML = '';
+    sortedRows.forEach(row => tbody.appendChild(row));
+  });
+});
+</script>
+</body>
+</html>

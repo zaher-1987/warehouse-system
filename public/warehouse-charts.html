@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>📊 Warehouse Charts</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f4f6f8;
+    }
+    h2 {
+      margin-bottom: 10px;
+    }
+    select {
+      padding: 6px 10px;
+      margin-right: 10px;
+      margin-bottom: 20px;
+    }
+    canvas {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+  </style>
+</head>
+<body>
+  <h2>📊 Warehouse Inventory Charts</h2>
+
+  <label for="countryFilter">🌍 Country:</label>
+  <select id="countryFilter">
+    <option value="">All</option>
+  </select>
+
+  <label for="warehouseFilter">🏭 Warehouse:</label>
+  <select id="warehouseFilter">
+    <option value="">All</option>
+  </select>
+
+  <label for="statusFilter">🟢 Status:</label>
+  <select id="statusFilter">
+    <option value="">All</option>
+    <option value="green">Green</option>
+    <option value="orange">Orange</option>
+    <option value="red">Red</option>
+  </select>
+
+  <canvas id="warehouseChart" width="800" height="400"></canvas>
+
+  <script>
+    let originalData = [];
+    let chart;
+
+    async function fetchData() {
+      const res = await fetch('/inventory-status');
+      const data = await res.json();
+      originalData = data;
+      populateFilters(data);
+      renderChart(data);
+    }
+
+    function populateFilters(data) {
+      const warehouseSelect = document.getElementById('warehouseFilter');
+      const countrySelect = document.getElementById('countryFilter');
+
+      const warehouseSet = new Set();
+      const countrySet = new Set();
+
+      data.forEach(item => {
+        warehouseSet.add(item.warehouse_name);
+        if (item.country) countrySet.add(item.country);
+      });
+
+      warehouseSelect.innerHTML = '<option value="">All</option>' + [...warehouseSet].map(w => `<option value="${w}">${w}</option>`).join('');
+      countrySelect.innerHTML = '<option value="">All</option>' + [...countrySet].map(c => `<option value="${c}">${c}</option>`).join('');
+    }
+
+    function filterData() {
+      const warehouseFilter = document.getElementById('warehouseFilter').value;
+      const countryFilter = document.getElementById('countryFilter').value;
+      const statusFilter = document.getElementById('statusFilter').value;
+
+      return originalData.filter(item => {
+        const matchWarehouse = !warehouseFilter || item.warehouse_name === warehouseFilter;
+        const matchCountry = !countryFilter || item.country === countryFilter;
+        const matchStatus = !statusFilter || item.status === statusFilter;
+        return matchWarehouse && matchCountry && matchStatus;
+      });
+    }
+
+    function renderChart(data) {
+      const ctx = document.getElementById('warehouseChart').getContext('2d');
+      const counts = {};
+
+      data.forEach(item => {
+        if (!counts[item.warehouse_name]) counts[item.warehouse_name] = 0;
+        counts[item.warehouse_name] += item.quantity;
+      });
+
+      const labels = Object.keys(counts);
+      const values = Object.values(counts);
+
+      if (chart) chart.destroy();
+
+      chart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Total Quantity',
+            data: values,
+            backgroundColor: '#4caf50'
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false },
+            title: { display: true, text: 'Total Inventory per Warehouse' }
+          },
+          scales: {
+            y: { beginAtZero: true }
+          }
+        }
+      });
+    }
+
+    document.getElementById('warehouseFilter').addEventListener('change', () => renderChart(filterData()));
+    document.getElementById('countryFilter').addEventListener('change', () => renderChart(filterData()));
+    document.getElementById('statusFilter').addEventListener('change', () => renderChart(filterData()));
+
+    fetchData();
+  </script>
+</body>
+</html>

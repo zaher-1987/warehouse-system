@@ -1,0 +1,14 @@
+[
+  {
+    "item_id": "V005",
+    "warehouse_id": 1,
+    "name": "KidneyRX",
+    "quantity": 3000
+  },
+  {
+    "item_id": "L002",
+    "warehouse_id": 2,
+    "name": "LiverRX",
+    "quantity": 200
+  }
+]

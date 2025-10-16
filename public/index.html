@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Warehouse Inventory</title>
+  <meta charset="UTF-8" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    h1 {
+      color: #333;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      padding: 10px;
+      border: 1px solid #ddd;
+      text-align: left;
+    }
+    .green { background-color: #d4edda; }
+    .orange { background-color: #fff3cd; }
+    .red { background-color: #f8d7da; }
+  </style>
+</head>
+<body>
+  <h1>📦 Inventory Dashboard</h1>
+  <table id="inventoryTable">
+    <thead>
+      <tr>
+        <th>Item ID</th>
+        <th>Name</th>
+        <th>Type</th>
+        <th>MG</th>
+        <th>Made Date</th>
+        <th>Quantity</th>
+        <th>Warehouse</th>
+        <th>Country</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    fetch('/items')
+      .then(res => res.json())
+      .then(data => {
+        const tbody = document.querySelector('#inventoryTable tbody');
+        data.forEach(item => {
+          const tr = document.createElement('tr');
+
+          // Stock logic: assume 2000 is the 2-month stock requirement
+          const qty = item.quantity;
+          let status = 'green';
+          if (qty < 200) {
+            status = 'red';
+          } else if (qty < 1000) {
+            status = 'orange';
+          }
+
+          tr.classList.add(status);
+
+          tr.innerHTML = `
+            <td>${item.item_id}</td>
+            <td>${item.name}</td>
+            <td>${item.type || ''}</td>
+            <td>${item.mg || ''}</td>
+            <td>${item.made_date || ''}</td>
+            <td>${item.quantity}</td>
+            <td>${item.warehouse_name || ''}</td>
+            <td>${item.country || ''}</td>
+            <td>${status.toUpperCase()}</td>
+          `;
+
+          tbody.appendChild(tr);
+        });
+      });
+  </script>
+</body>
+</html>

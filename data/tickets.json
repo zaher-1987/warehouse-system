@@ -1,0 +1,22 @@
+[
+  {
+    "id": 1,
+    "warehouse": "Indonesia",
+    "item_id": "V005",
+    "quantity": 3000,
+    "request_date": "2025-10-02",
+    "collect_date": "2025-10-07",
+    "status": "URGENT",
+    "created_by": "auto-system"
+  },
+  {
+    "id": 2,
+    "warehouse": "Vietnam",
+    "item_id": "L002",
+    "quantity": 2000,
+    "request_date": "2025-10-02",
+    "collect_date": "2025-10-07",
+    "status": "URGENT",
+    "created_by": "auto-system"
+  }
+]
