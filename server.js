@@ -23,12 +23,6 @@ const ITEM_FILE = 'data/items.json';
 const TICKET_FILE = 'data/tickets.json';
 const USERS_FILE = 'data/users.json';
 
-// ✅ Load data
-let warehouses = readJson(WAREHOUSE_FILE);
-let items = readJson(ITEM_FILE);
-let tickets = readJson(TICKET_FILE);
-let users = readJson(USERS_FILE);
-
 // ✅ Read/Write Helpers
 function readJson(file) {
   if (!fs.existsSync(file)) return [];
@@ -38,6 +32,12 @@ function readJson(file) {
 function writeJson(file, data) {
   fs.writeFileSync(file, JSON.stringify(data, null, 2));
 }
+
+// ✅ Load data
+let warehouses = readJson(WAREHOUSE_FILE);
+let items = readJson(ITEM_FILE);
+let tickets = readJson(TICKET_FILE);
+let users = readJson(USERS_FILE);
 
 // ===================== 🌐 AUTH =====================
 
@@ -54,7 +54,8 @@ app.post('/login', (req, res) => {
   req.session.user = {
     username: found.username,
     role: found.role,
-    warehouse_id: found.warehouse_id || null
+    warehouse_id: found.warehouse_id || null,
+    warehouse_name: warehouses.find(w => w.id === found.warehouse_id)?.name || null
   };
   console.log(`🔐 ${found.username} logged in as ${found.role}`);
   res.redirect('/dashboard.html');
@@ -80,6 +81,7 @@ function requireAdmin(req, res, next) {
 
 // Warehouses
 app.get('/warehouses', (req, res) => res.json(warehouses));
+
 app.post('/warehouses', (req, res) => {
   const newId = warehouses.length ? warehouses[warehouses.length - 1].id + 1 : 1;
   const newWarehouse = { id: newId, ...req.body };
@@ -132,6 +134,7 @@ app.post('/update-item', requireAdmin, (req, res) => {
 
 // ✅ Ticket Routes
 app.get('/tickets', (req, res) => res.json(tickets));
+
 app.post('/tickets', (req, res) => {
   const newId = tickets.length ? tickets.length + 1 : 1;
   const newTicket = { id: newId, ...req.body };
@@ -150,10 +153,7 @@ app.get('/inventory-status', (req, res) => {
   const isAdmin = user?.role === 'admin';
 
   const statusData = items
-    .filter(item => {
-      // Admin sees everything, staff only sees their assigned warehouse
-      return isAdmin || item.warehouse_id === userWarehouseId;
-    })
+    .filter(item => isAdmin || item.warehouse_id === userWarehouseId)
     .map(item => {
       const warehouse = warehouses.find(w => w.id === item.warehouse_id);
       const mainItem = items.find(i => i.item_id === item.item_id && i.warehouse_id === mainWarehouse.id);
@@ -179,12 +179,6 @@ app.get('/inventory-status', (req, res) => {
     });
 
   res.json(statusData);
-});
-
-  if (user.role === 'admin') return res.json(statusData);
-
-  const filtered = statusData.filter(i => i.warehouse_id === user.warehouse_id);
-  res.json(filtered);
 });
 
 // ✅ Auto-ticket generation logic
