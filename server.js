@@ -1,6 +1,6 @@
-// ✅ server.js — Final Stable Version with Edit & Status Logic
 const express = require('express');
 const bodyParser = require('body-parser');
+const session = require('express-session');
 const fs = require('fs');
 const path = require('path');
 
@@ -9,12 +9,25 @@ const PORT = process.env.PORT || 3000;
 
 // ✅ Middleware
 app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(session({
+  secret: 'super-secret-key',
+  resave: false,
+  saveUninitialized: true
+}));
 
 // ✅ JSON file paths
 const WAREHOUSE_FILE = 'data/warehouses.json';
 const ITEM_FILE = 'data/items.json';
 const TICKET_FILE = 'data/tickets.json';
+const USERS_FILE = 'data/users.json'; // ✅ Needed for login
+
+// ✅ Load data
+let warehouses = readJson(WAREHOUSE_FILE);
+let items = readJson(ITEM_FILE);
+let tickets = readJson(TICKET_FILE);
+let users = readJson(USERS_FILE);
 
 // ✅ Read/Write Helpers
 function readJson(file) {
@@ -26,12 +39,40 @@ function writeJson(file, data) {
   fs.writeFileSync(file, JSON.stringify(data, null, 2));
 }
 
-// ✅ Load data
-let warehouses = readJson(WAREHOUSE_FILE);
-let items = readJson(ITEM_FILE);
-let tickets = readJson(TICKET_FILE);
+// ===================== 🌐 AUTH =====================
 
-// 🌐 ROUTES
+app.get('/login', (req, res) => {
+  res.redirect('/login.html');
+});
+
+app.post('/login', (req, res) => {
+  const { username, password } = req.body;
+  const found = users.find(u => u.username === username && u.password === password);
+  if (!found) {
+    return res.send('❌ Invalid credentials. <a href="/login.html">Try again</a>');
+  }
+  req.session.user = { username: found.username, role: found.role };
+  console.log(`🔐 ${found.username} logged in as ${found.role}`);
+  res.redirect('/dashboard.html');
+});
+
+app.get('/logout', (req, res) => {
+  req.session.destroy(() => res.redirect('/login.html'));
+});
+
+app.get('/session-status', (req, res) => {
+  if (req.session.user) {
+    return res.json({ loggedIn: true, user: req.session.user });
+  }
+  res.json({ loggedIn: false });
+});
+
+function requireAdmin(req, res, next) {
+  if (req.session.user && req.session.user.role === 'admin') return next();
+  return res.status(403).send('❌ Admins only. <a href="/login.html">Login</a>');
+}
+
+// ===================== 🌐 ROUTES =====================
 
 // Warehouses
 app.get('/warehouses', (req, res) => res.json(warehouses));
@@ -46,112 +87,15 @@ app.post('/warehouses', (req, res) => {
 // Items
 app.get('/items', (req, res) => res.json(items));
 app.post('/items', (req, res) => {
-  const newId = items.length ? items[items.length - 1].id + 1 : 1;
+  const newId = items.length ? items.length + 1 : 1;
   const newItem = { id: newId, ...req.body };
   items.push(newItem);
   writeJson(ITEM_FILE, items);
   res.status(201).json(newItem);
 });
 
-// Tickets
-app.get('/tickets', (req, res) => res.json(tickets));
-app.post('/tickets', (req, res) => {
-  const newId = tickets.length ? tickets[tickets.length - 1].id + 1 : 1;
-  const newTicket = { id: newId, ...req.body };
-  tickets.push(newTicket);
-  writeJson(TICKET_FILE, tickets);
-  res.status(201).json(newTicket);
-});
-
-// ✅ Inventory Status
-app.get('/inventory-status', (req, res) => {
-  const statusData = [];
-  const mainWarehouse = warehouses.find(w => w.name.toLowerCase().includes('main'));
-  if (!mainWarehouse) return res.json([]);
-
-  items.forEach(item => {
-    const warehouse = warehouses.find(w => w.id === item.warehouse_id);
-    if (!warehouse) return;
-
-    const mainStock = items.find(i => i.item_id === item.item_id && i.warehouse_id === mainWarehouse.id);
-    const mainQty = mainStock ? mainStock.quantity : 0;
-
-    let status = 'unknown';
-    if (item.warehouse_id !== mainWarehouse.id && mainQty > 0) {
-      const percentage = (item.quantity / mainQty) * 100;
-      if (percentage <= 10) status = 'red';
-      else if (percentage <= 60) status = 'orange';
-      else status = 'green';
-    } else if (item.warehouse_id === mainWarehouse.id) {
-      status = 'green';
-    }
-
-    statusData.push({
-      warehouse_name: warehouse.name,
-      item_id: item.item_id,
-      name: item.name || '-',
-      quantity: item.quantity,
-      status
-    });
-  });
-
-  res.json(statusData);
-});
-
-// ✅ Ticket Helper
-function ticketExists(warehouse, itemId) {
-  return tickets.some(t => t.warehouse === warehouse && t.item_id === itemId);
-}
-
-// ✅ Auto Ticket Logic
-function checkAutoTicketLogic() {
-  console.log('🔁 Checking stock levels...');
-  const grouped = {};
-  items.forEach(item => {
-    if (!grouped[item.item_id]) grouped[item.item_id] = [];
-    grouped[item.item_id].push(item);
-  });
-
-  const mainWarehouse = warehouses.find(w => w.name.toLowerCase().includes('main'));
-  if (!mainWarehouse) return; 
-  const mainId = mainWarehouse.id; 
-
-  Object.entries(grouped).forEach(([itemId, group]) => {
-    const mainItem = group.find(i => i.warehouse_id === mainId);
-    if (!mainItem) return;
-    const mainQty = mainItem.quantity;
-
-    group.forEach(i => {
-      if (i.warehouse_id !== mainId) {
-        const percent = (i.quantity / mainQty) * 100;
-        const wh = warehouses.find(w => w.id === i.warehouse_id);
-        if (!wh) return;
-        const urgent = percent <= 20;
-
-        if (percent <= 60 && !ticketExists(wh.name, itemId)) {
-          const today = new Date();
-          const collect = new Date(Date.now() + 5 * 86400000);
-
-          tickets.push({
-            id: tickets.length ? tickets[tickets.length - 1].id + 1 : 1,
-            warehouse: wh.name,
-            item_id: itemId,
-            quantity: mainQty,
-            request_date: today.toISOString().split('T')[0],
-            collect_date: collect.toISOString().split('T')[0],
-            status: urgent ? 'URGENT' : 'PENDING',
-            created_by: 'auto-system'
-          });
-        }
-      }
-    });
-  });
-
-  writeJson(TICKET_FILE, tickets);
-}
-
-// ✅ Update Item and Recalculate Status
-app.post('/update-item', (req, res) => {
+// ✅ Admin-only item update
+app.post('/update-item', requireAdmin, (req, res) => {
   try {
     const { warehouse, item_id, name, quantity } = req.body;
     const warehouseObj = warehouses.find(w => w.name === warehouse);
@@ -173,67 +117,92 @@ app.post('/update-item', (req, res) => {
   }
 });
 
-// ✅ Initial run
-checkAutoTicketLogic();
-
-// ✅ WIX Webhook Receiver (when order is paid)
-app.post('/wix-order-webhook', async (req, res) => {
-  try {
-    const { site, orderId, items } = req.body;
-    console.log(`📦 Received WIX Order #${orderId} from ${site}`);
-
-    const warehouseName = mapWixSiteToWarehouse(site);
-    let db = readJson(ITEM_FILE);
-
-    // 🔁 Deduct quantities from that warehouse
-    items.forEach(purchased => {
-      const item = db.find(i =>
-        i.name.trim().toLowerCase() === purchased.name.trim().toLowerCase() &&
-        i.warehouse_name === warehouseName
-      );
-      if (item) {
-        item.quantity = Math.max(0, item.quantity - purchased.quantity);
-        item.status = getStatus(item.quantity);
-        console.log(`🧮 Updated ${item.name}: ${item.quantity} left in ${warehouseName}`);
-      }
-    });
-
-    // 💾 Save changes
-    writeJson(ITEM_FILE, db);
-
-    // 🔔 Auto ticket creation if needed
-    checkAutoTicketLogic();
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error('❌ Webhook error:', err);
-    res.status(500).json({ success: false, message: err.message });
-  }
+// ✅ Ticket Routes
+app.get('/tickets', (req, res) => res.json(tickets));
+app.post('/tickets', (req, res) => {
+  const newId = tickets.length ? tickets.length + 1 : 1;
+  const newTicket = { id: newId, ...req.body };
+  tickets.push(newTicket);
+  writeJson(TICKET_FILE, tickets);
+  res.status(201).json(newTicket);
 });
 
-// 🧩 Helper functions
-function mapWixSiteToWarehouse(siteName) {
-  const map = {
-    'Indonesia Store': 'Indonesia',
-    'Vietnam Store': 'Vietnam',
-    'Thailand Store': 'Thailand',
-    'India Store': 'India',
-    'Japan Store': 'Japan',
-    'S.Korea Store': 'S.Korea',
-    'Germany Store': 'Germany',
-    'USA Store': 'USA',
-    'Colombia Store': 'Colombia',
-    'Brazil Store': 'Brazil',
-    'Philippines Store': 'Philippines'
-  };
-  return map[siteName] || 'Unknown';
+// ✅ Inventory Status
+app.get('/inventory-status', (req, res) => {
+  const mainWarehouse = warehouses.find(w => w.name.toLowerCase().includes('main'));
+  if (!mainWarehouse) return res.json([]);
+
+  const statusData = items.map(item => {
+    const warehouse = warehouses.find(w => w.id === item.warehouse_id);
+    const mainItem = items.find(i => i.item_id === item.item_id && i.warehouse_id === mainWarehouse.id);
+    const mainQty = mainItem ? mainItem.quantity : 0;
+
+    let status = 'unknown';
+    if (item.warehouse_id !== mainWarehouse.id && mainQty > 0) {
+      const percent = (item.quantity / mainQty) * 100;
+      if (percent <= 10) status = 'red';
+      else if (percent <= 60) status = 'orange';
+      else status = 'green';
+    } else if (item.warehouse_id === mainWarehouse.id) {
+      status = 'green';
+    }
+
+    return {
+      warehouse_name: warehouse?.name || '-',
+      item_id: item.item_id,
+      name: item.name,
+      quantity: item.quantity,
+      status
+    };
+  });
+
+  res.json(statusData);
+});
+
+// ✅ Auto-ticket generation logic
+function checkAutoTicketLogic() {
+  const grouped = {};
+  items.forEach(item => {
+    if (!grouped[item.item_id]) grouped[item.item_id] = [];
+    grouped[item.item_id].push(item);
+  });
+
+  const mainWarehouse = warehouses.find(w => w.name.toLowerCase().includes('main'));
+  if (!mainWarehouse) return;
+
+  const mainId = mainWarehouse.id;
+
+  Object.entries(grouped).forEach(([itemId, group]) => {
+    const mainItem = group.find(i => i.warehouse_id === mainId);
+    if (!mainItem) return;
+
+    group.forEach(i => {
+      if (i.warehouse_id !== mainId) {
+        const percent = (i.quantity / mainItem.quantity) * 100;
+        const wh = warehouses.find(w => w.id === i.warehouse_id);
+        if (!wh) return;
+
+        const urgent = percent <= 20;
+
+        if (percent <= 60 && !tickets.some(t => t.item_id === itemId && t.warehouse === wh.name)) {
+          tickets.push({
+            id: tickets.length ? tickets.length + 1 : 1,
+            warehouse: wh.name,
+            item_id: itemId,
+            quantity: mainItem.quantity,
+            request_date: new Date().toISOString().split('T')[0],
+            collect_date: new Date(Date.now() + 5 * 86400000).toISOString().split('T')[0],
+            status: urgent ? 'URGENT' : 'PENDING',
+            created_by: 'auto-system'
+          });
+        }
+      }
+    });
+  });
+
+  writeJson(TICKET_FILE, tickets);
 }
 
-function getStatus(qty) {
-  if (qty <= 15) return 'red';
-  if (qty <= 40) return 'orange';
-  return 'green';
-}
-
-// ✅ Start server (Render & local both supported)
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+// ✅ Start Server
+checkAutoTicketLogic();
+app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
