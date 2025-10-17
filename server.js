@@ -202,7 +202,10 @@ function checkAutoTicketLogic() {
 
   writeJson(TICKET_FILE, tickets);
 }
-
+// Redirect root URL to login page
+app.get('/', (req, res) => {
+  res.redirect('/login.html');
+});
 // ✅ Start Server
 checkAutoTicketLogic();
 app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
