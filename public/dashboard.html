@@ -8,6 +8,7 @@
       font-family: Arial, sans-serif;
       padding: 30px;
       background: #f4f6f8;
+      position: relative;
     }
     h2 {
       margin-bottom: 20px;
@@ -39,22 +40,10 @@
       background: #f2f2f2;
       cursor: pointer;
     }
-    .green {
-      background-color: #d4edda;
-      color: #155724;
-    }
-    .orange {
-      background-color: #fff3cd;
-      color: #856404;
-    }
-    .red {
-      background-color: #f8d7da;
-      color: #721c24;
-    }
-    .unknown {
-      background-color: #e2e3e5;
-      color: #6c757d;
-    }
+    .green { background-color: #d4edda; color: #155724; }
+    .orange { background-color: #fff3cd; color: #856404; }
+    .red { background-color: #f8d7da; color: #721c24; }
+    .unknown { background-color: #e2e3e5; color: #6c757d; }
     .modal {
       display: none;
       position: fixed;
@@ -84,9 +73,23 @@
       height: 100%;
       border: none;
     }
+    .logout {
+      position: absolute;
+      top: 20px;
+      right: 30px;
+      background: #dc3545;
+      color: white;
+      padding: 8px 14px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .logout:hover { background: #c82333; }
   </style>
 </head>
 <body>
+  <a class="logout" href="/logout">🚪 Logout</a>
   <h2>📦 Warehouse Inventory Dashboard</h2>
 
   <label for="warehouseFilter">Filter by Warehouse:</label>
@@ -96,7 +99,7 @@
 
   <button onclick="exportInventory()">📁 Export to Excel</button>
   <button onclick="openChartModal()">📊 View Charts</button>
-  <button onclick="toggleEditMode()" id="editToggle">✏️ Enable Edit Mode</button>
+  <button id="editToggle" style="display:none;" onclick="toggleEditMode()">✏️ Enable Edit Mode</button>
 
   <table id="inventoryTable">
     <thead>
@@ -118,120 +121,128 @@
     </div>
   </div>
 
-<script>
-let editMode = false;
+  <script>
+    let editMode = false;
+    let userRole = 'staff'; // default
 
-function toggleEditMode() {
-  editMode = !editMode;
-  document.getElementById('editToggle').textContent = editMode ? '🚫 Disable Edit Mode' : '✏️ Enable Edit Mode';
-  loadInventory();
-}
+    // ✅ Check session and adjust UI
+    async function checkSession() {
+      const res = await fetch('/session-status');
+      const data = await res.json();
+      if (!data.loggedIn) {
+        window.location.href = '/login.html';
+        return;
+      }
+      userRole = data.user.role;
+      console.log('👤 Logged in as:', userRole);
+      if (userRole === 'admin') {
+        document.getElementById('editToggle').style.display = 'inline-block';
+      }
+      loadInventory();
+    }
 
-async function loadInventory() {
-  const res = await fetch('/inventory-status');
-  const data = await res.json();
-  const tbody = document.querySelector('#inventoryTable tbody');
-  const filter = document.getElementById('warehouseFilter').value;
+    function toggleEditMode() {
+      if (userRole !== 'admin') {
+        alert('❌ Only admin can edit items.');
+        return;
+      }
+      editMode = !editMode;
+      document.getElementById('editToggle').textContent =
+        editMode ? '🚫 Disable Edit Mode' : '✏️ Enable Edit Mode';
+      loadInventory();
+    }
 
-  let warehouses = new Set();
-  tbody.innerHTML = '';
+    async function loadInventory() {
+      const res = await fetch('/inventory-status');
+      const data = await res.json();
+      const tbody = document.querySelector('#inventoryTable tbody');
+      const filter = document.getElementById('warehouseFilter').value;
 
-  data.forEach(item => {
-    warehouses.add(item.warehouse_name);
+      let warehouses = new Set();
+      tbody.innerHTML = '';
 
-    if (!filter || item.warehouse_name === filter) {
-      const tr = document.createElement('tr');
+      data.forEach(item => {
+        warehouses.add(item.warehouse_name);
+        if (!filter || item.warehouse_name === filter) {
+          const tr = document.createElement('tr');
+          const cssClass = ['green', 'orange', 'red'].includes(item.status)
+            ? item.status : 'unknown';
+          tr.classList.add(cssClass);
 
-      const validStatuses = ['green', 'orange', 'red'];
-      const cssClass = validStatuses.includes(item.status) ? item.status : 'unknown';
-      tr.classList.add(cssClass);
+          let statusIcon = '';
+          switch (item.status) {
+            case 'green': statusIcon = '✅'; break;
+            case 'orange': statusIcon = '⚠️'; break;
+            case 'red': statusIcon = '❌'; break;
+            default: statusIcon = '❓';
+          }
 
-      let statusIcon = '';
-      switch (item.status) {
-        case 'green': statusIcon = '<span title="Stock OK (≥ 60%)">✅</span>'; break;
-        case 'orange': statusIcon = '<span title="Low stock (≤ 60%)">⚠️</span>'; break;
-        case 'red': statusIcon = '<span title="Urgent! Critically low (≤ 10%)">❌</span>'; break;
-        default: statusIcon = '<span title="Unknown">❓</span>';
+          tr.innerHTML = `
+            <td>${item.warehouse_name}</td>
+            <td>${item.item_id}</td>
+            <td contenteditable="${editMode}" data-field="name">${item.name}</td>
+            <td contenteditable="${editMode}" data-field="quantity">${item.quantity}</td>
+            <td>${statusIcon}</td>
+            ${editMode ? '<td><button onclick="saveItem(this)">💾 Save</button></td>' : ''}
+          `;
+          tbody.appendChild(tr);
+        }
+      });
+
+      const warehouseSelect = document.getElementById('warehouseFilter');
+      warehouseSelect.innerHTML = '<option value="">All</option>';
+      [...warehouses].forEach(w => {
+        warehouseSelect.innerHTML += `<option value="${w}">${w}</option>`;
+      });
+    }
+
+    async function saveItem(btn) {
+      if (userRole !== 'admin') {
+        alert('❌ Only admin can edit items.');
+        return;
       }
 
-      tr.innerHTML = `
-        <td>${item.warehouse_name}</td>
-        <td>${item.item_id}</td>
-        <td contenteditable="${editMode}" data-field="name">${item.name}</td>
-        <td contenteditable="${editMode}" data-field="quantity">${item.quantity}</td>
-        <td>${statusIcon}</td>
-        ${editMode ? '<td><button onclick="saveItem(this)">💾 Save</button></td>' : ''}
-      `;
+      const row = btn.closest('tr');
+      const warehouse = row.children[0].textContent.trim();
+      const item_id = row.children[1].textContent.trim();
+      const name = row.querySelector('[data-field="name"]').textContent.trim();
+      const quantity = parseInt(row.querySelector('[data-field="quantity"]').textContent.trim());
 
-      tbody.appendChild(tr);
+      const res = await fetch('/update-item', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ warehouse, item_id, name, quantity })
+      });
+
+      const result = await res.json();
+      if (result.success) {
+        btn.disabled = true;
+        btn.textContent = '✔️ Saved';
+        setTimeout(() => {
+          btn.disabled = false;
+          btn.textContent = '💾 Save';
+          loadInventory();
+        }, 1000);
+      } else {
+        alert('❌ Update failed: ' + result.message);
+      }
     }
-  });
 
-  const warehouseSelect = document.getElementById('warehouseFilter');
-  warehouseSelect.innerHTML = '<option value="">All</option>';
-  [...warehouses].forEach(w => {
-    warehouseSelect.innerHTML += `<option value="${w}">${w}</option>`;
-  });
-}
+    function exportInventory() {
+      window.location.href = '/export-inventory';
+    }
 
-async function saveItem(btn) {
-  const row = btn.closest('tr');
-  const warehouse = row.children[0].textContent.trim();
-  const item_id = row.children[1].textContent.trim();
-  const name = row.querySelector('[data-field="name"]').textContent.trim();
-  const quantity = parseInt(row.querySelector('[data-field="quantity"]').textContent.trim());
+    function openChartModal() {
+      document.getElementById('chartModal').style.display = 'block';
+    }
 
-  const res = await fetch('/update-item', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ warehouse, item_id, name, quantity })
-  });
+    function closeChartModal() {
+      document.getElementById('chartModal').style.display = 'none';
+    }
 
-  const result = await res.json();
-  if (result.success) {
-    btn.disabled = true;
-    btn.textContent = '✔️ Saved';
-    row.style.backgroundColor = '#d1e7dd';
-    setTimeout(() => {
-      row.style.backgroundColor = '';
-      btn.disabled = false;
-      btn.textContent = '💾 Save';
-      loadInventory(); // 🔁 Reloads status + quantity
-    }, 1000);
-  } else {
-    alert('❌ Update failed: ' + result.message);
-  }
-}
-
-function exportInventory() {
-  window.location.href = '/export-inventory';
-}
-
-function openChartModal() {
-  document.getElementById('chartModal').style.display = 'block';
-}
-
-function closeChartModal() {
-  document.getElementById('chartModal').style.display = 'none';
-}
-
-document.getElementById('warehouseFilter').addEventListener('change', loadInventory);
-loadInventory();
-setInterval(loadInventory, 30000);
-
-document.querySelectorAll('#inventoryTable th').forEach((header, index) => {
-  header.addEventListener('click', () => {
-    const rows = [...document.querySelectorAll('#inventoryTable tbody tr')];
-    const sortedRows = rows.sort((a, b) => {
-      const aText = a.children[index].textContent.trim();
-      const bText = b.children[index].textContent.trim();
-      return aText.localeCompare(bText, undefined, { numeric: true });
-    });
-    const tbody = document.querySelector('#inventoryTable tbody');
-    tbody.innerHTML = '';
-    sortedRows.forEach(row => tbody.appendChild(row));
-  });
-});
-</script>
+    document.getElementById('warehouseFilter').addEventListener('change', loadInventory);
+    setInterval(loadInventory, 30000);
+    checkSession();
+  </script>
 </body>
 </html>
