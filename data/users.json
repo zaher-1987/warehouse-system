@@ -5,8 +5,80 @@
     "role": "admin"
   },
   {
+    "username": "zaher",
+    "password": "zaher123",
+    "role": "admin"
+  },,
+  {
     "username": "staff",
     "password": "staff123",
     "role": "staff"
   }
+  {
+    "username": "indonesia_user",
+    "password": "pass123",
+    "role": "staff",
+    "warehouse_id": 2
+  },
+  {
+    "username": "thailand_user",
+    "password": "pass123",
+    "role": "staff",
+    "warehouse_id": 3
+  },
+  {
+    "username": "usa_user",
+    "password": "pass123",
+    "role": "staff",
+    "warehouse_id": 4
+  },
+  {
+    "username": "viatnam_user",
+    "password": "pass123",
+    "role": "staff",
+    "warehouse_id": 5
+  },
+  {
+    "username": "india_user",
+    "password": "pass123",
+    "role": "staff",
+    "warehouse_id": 6
+  },
+  {
+    "username": "japan_user",
+    "password": "pass123",
+    "role": "staff",
+    "warehouse_id": 7
+  },
+  {
+    "username": "s.korea_user",
+    "password": "pass123",
+    "role": "staff",
+    "warehouse_id": 8
+  },
+  {
+    "username": "germany_user",
+    "password": "pass123",
+    "role": "staff",
+    "warehouse_id": 9
+  },
+  {
+    "username": "colombia_user",
+    "password": "pass123",
+    "role": "staff",
+    "warehouse_id": 10
+  },
+  {
+    "username": "brazil_user",
+    "password": "pass123",
+    "role": "staff",
+    "warehouse_id": 11
+  },
+  {
+    "username": "philippes_user",
+    "password": "pass123",
+    "role": "staff",
+    "warehouse_id": 12
+  }
+
 ]
