@@ -21,7 +21,7 @@ app.use(session({
 const WAREHOUSE_FILE = 'data/warehouses.json';
 const ITEM_FILE = 'data/items.json';
 const TICKET_FILE = 'data/tickets.json';
-const USERS_FILE = 'data/users.json'; // ✅ Needed for login
+const USERS_FILE = 'data/users.json';
 
 // ✅ Load data
 let warehouses = readJson(WAREHOUSE_FILE);
@@ -51,7 +51,11 @@ app.post('/login', (req, res) => {
   if (!found) {
     return res.send('❌ Invalid credentials. <a href="/login.html">Try again</a>');
   }
-  req.session.user = { username: found.username, role: found.role };
+  req.session.user = {
+    username: found.username,
+    role: found.role,
+    warehouse_id: found.warehouse_id || null
+  };
   console.log(`🔐 ${found.username} logged in as ${found.role}`);
   res.redirect('/dashboard.html');
 });
@@ -85,7 +89,16 @@ app.post('/warehouses', (req, res) => {
 });
 
 // Items
-app.get('/items', (req, res) => res.json(items));
+app.get('/items', (req, res) => {
+  const user = req.session.user;
+  if (!user) return res.status(403).json([]);
+
+  if (user.role === 'admin') return res.json(items);
+
+  const filtered = items.filter(i => i.warehouse_id === user.warehouse_id);
+  res.json(filtered);
+});
+
 app.post('/items', (req, res) => {
   const newId = items.length ? items.length + 1 : 1;
   const newItem = { id: newId, ...req.body };
@@ -129,6 +142,9 @@ app.post('/tickets', (req, res) => {
 
 // ✅ Inventory Status
 app.get('/inventory-status', (req, res) => {
+  const user = req.session.user;
+  if (!user) return res.status(403).json([]);
+
   const mainWarehouse = warehouses.find(w => w.name.toLowerCase().includes('main'));
   if (!mainWarehouse) return res.json([]);
 
@@ -152,11 +168,15 @@ app.get('/inventory-status', (req, res) => {
       item_id: item.item_id,
       name: item.name,
       quantity: item.quantity,
-      status
+      status,
+      warehouse_id: item.warehouse_id
     };
   });
 
-  res.json(statusData);
+  if (user.role === 'admin') return res.json(statusData);
+
+  const filtered = statusData.filter(i => i.warehouse_id === user.warehouse_id);
+  res.json(filtered);
 });
 
 // ✅ Auto-ticket generation logic
@@ -202,10 +222,12 @@ function checkAutoTicketLogic() {
 
   writeJson(TICKET_FILE, tickets);
 }
+
 // Redirect root URL to login page
 app.get('/', (req, res) => {
   res.redirect('/login.html');
 });
+
 // ✅ Start Server
 checkAutoTicketLogic();
 app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
