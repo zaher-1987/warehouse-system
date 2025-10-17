@@ -142,36 +142,44 @@ app.post('/tickets', (req, res) => {
 
 // ✅ Inventory Status
 app.get('/inventory-status', (req, res) => {
-  const user = req.session.user;
-  if (!user) return res.status(403).json([]);
-
   const mainWarehouse = warehouses.find(w => w.name.toLowerCase().includes('main'));
   if (!mainWarehouse) return res.json([]);
 
-  const statusData = items.map(item => {
-    const warehouse = warehouses.find(w => w.id === item.warehouse_id);
-    const mainItem = items.find(i => i.item_id === item.item_id && i.warehouse_id === mainWarehouse.id);
-    const mainQty = mainItem ? mainItem.quantity : 0;
+  const user = req.session.user;
+  const userWarehouseId = user?.warehouse_id || null;
+  const isAdmin = user?.role === 'admin';
 
-    let status = 'unknown';
-    if (item.warehouse_id !== mainWarehouse.id && mainQty > 0) {
-      const percent = (item.quantity / mainQty) * 100;
-      if (percent <= 10) status = 'red';
-      else if (percent <= 60) status = 'orange';
-      else status = 'green';
-    } else if (item.warehouse_id === mainWarehouse.id) {
-      status = 'green';
-    }
+  const statusData = items
+    .filter(item => {
+      // Admin sees everything, staff only sees their assigned warehouse
+      return isAdmin || item.warehouse_id === userWarehouseId;
+    })
+    .map(item => {
+      const warehouse = warehouses.find(w => w.id === item.warehouse_id);
+      const mainItem = items.find(i => i.item_id === item.item_id && i.warehouse_id === mainWarehouse.id);
+      const mainQty = mainItem ? mainItem.quantity : 0;
 
-    return {
-      warehouse_name: warehouse?.name || '-',
-      item_id: item.item_id,
-      name: item.name,
-      quantity: item.quantity,
-      status,
-      warehouse_id: item.warehouse_id
-    };
-  });
+      let status = 'unknown';
+      if (item.warehouse_id !== mainWarehouse.id && mainQty > 0) {
+        const percent = (item.quantity / mainQty) * 100;
+        if (percent <= 10) status = 'red';
+        else if (percent <= 60) status = 'orange';
+        else status = 'green';
+      } else if (item.warehouse_id === mainWarehouse.id) {
+        status = 'green';
+      }
+
+      return {
+        warehouse_name: warehouse?.name || '-',
+        item_id: item.item_id,
+        name: item.name,
+        quantity: item.quantity,
+        status
+      };
+    });
+
+  res.json(statusData);
+});
 
   if (user.role === 'admin') return res.json(statusData);
 
