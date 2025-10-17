@@ -5,15 +5,10 @@
     "role": "admin"
   },
   {
-    "username": "zaher",
-    "password": "zaher123",
-    "role": "admin"
-  },
-  {
     "username": "staff",
     "password": "staff123",
     "role": "staff"
-  }
+  },
   {
     "username": "indonesia_user",
     "password": "pass123",
@@ -80,5 +75,4 @@
     "role": "staff",
     "warehouse_id": 12
   }
-
 ]
