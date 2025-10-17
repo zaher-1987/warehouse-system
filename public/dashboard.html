@@ -11,7 +11,11 @@
       position: relative;
     }
     h2 {
+      margin-bottom: 10px;
+    }
+    #userWarehouseInfo {
       margin-bottom: 20px;
+      font-style: italic;
     }
     select {
       padding: 6px 10px;
@@ -91,6 +95,7 @@
 <body>
   <a class="logout" href="/logout">🚪 Logout</a>
   <h2>📦 Warehouse Inventory Dashboard</h2>
+  <p id="userWarehouseInfo">Checking session...</p>
 
   <label for="warehouseFilter">Filter by Warehouse:</label>
   <select id="warehouseFilter">
@@ -123,9 +128,9 @@
 
   <script>
     let editMode = false;
-    let userRole = 'staff'; // default
+    let userRole = 'staff';
+    let assignedWarehouse = '';
 
-    // ✅ Check session and adjust UI
     async function checkSession() {
       const res = await fetch('/session-status');
       const data = await res.json();
@@ -133,14 +138,22 @@
         window.location.href = '/login.html';
         return;
       }
+
       userRole = data.user.role;
-      console.log('👤 Logged in as:', userRole);
+      assignedWarehouse = data.user.warehouse_name || '';
+
+      document.getElementById('userWarehouseInfo').textContent =
+        userRole === 'admin'
+          ? 'Logged in as Admin (all warehouses)'
+          : `Logged in as Staff - Warehouse: ${assignedWarehouse}`;
+
       if (userRole === 'admin') {
         document.getElementById('editToggle').style.display = 'inline-block';
       }
       if (userRole === 'staff') {
         document.getElementById('warehouseFilter').style.display = 'none';
       }
+
       loadInventory();
     }
 
@@ -166,10 +179,17 @@
 
       data.forEach(item => {
         warehouses.add(item.warehouse_name);
-        if (!filter || item.warehouse_name === filter) {
+
+        const isVisible =
+          userRole === 'admin'
+            ? !filter || item.warehouse_name === filter
+            : item.warehouse_name === assignedWarehouse;
+
+        if (isVisible) {
           const tr = document.createElement('tr');
           const cssClass = ['green', 'orange', 'red'].includes(item.status)
-            ? item.status : 'unknown';
+            ? item.status
+            : 'unknown';
           tr.classList.add(cssClass);
 
           let statusIcon = '';
@@ -192,11 +212,14 @@
         }
       });
 
-      const warehouseSelect = document.getElementById('warehouseFilter');
-      warehouseSelect.innerHTML = '<option value="">All</option>';
-      [...warehouses].forEach(w => {
-        warehouseSelect.innerHTML += `<option value="${w}">${w}</option>`;
-      });
+      // Fill dropdown only for admin
+      if (userRole === 'admin') {
+        const warehouseSelect = document.getElementById('warehouseFilter');
+        warehouseSelect.innerHTML = '<option value="">All</option>';
+        [...warehouses].forEach(w => {
+          warehouseSelect.innerHTML += `<option value="${w}">${w}</option>`;
+        });
+      }
     }
 
     async function saveItem(btn) {
