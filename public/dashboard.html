@@ -138,6 +138,9 @@
       if (userRole === 'admin') {
         document.getElementById('editToggle').style.display = 'inline-block';
       }
+      if (userRole === 'staff') {
+        document.getElementById('warehouseFilter').style.display = 'none';
+      }
       loadInventory();
     }
 
