@@ -3,8 +3,40 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ticket View</title>
-  <link rel="stylesheet" href="styles.css" />
+  <title>🎫 Ticket View</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 30px;
+      background: #f8f9fa;
+    }
+    h1 {
+      margin-bottom: 20px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 10px;
+      text-align: left;
+    }
+    th {
+      background: #f2f2f2;
+    }
+    a.btn {
+      padding: 6px 10px;
+      background: #0d6efd;
+      color: white;
+      border-radius: 4px;
+      text-decoration: none;
+    }
+    a.btn:hover {
+      background: #0b5ed7;
+    }
+  </style>
 </head>
 <body>
   <h1>📋 All Tickets Overview</h1>
@@ -32,21 +64,20 @@
       const tickets = await res.json();
       const tbody = document.querySelector('#ticketTable tbody');
       tbody.innerHTML = '';
+
       tickets.forEach(t => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td>${t.id}</td>
-          <td>${t.from_warehouse}</td>
-          <td>${t.to_warehouse}</td>
-          <td>${t.name}</td>
+          <td>${t.from}</td>
+          <td>${t.to}</td>
+          <td>${t.item_name}</td>
           <td>${t.quantity}</td>
           <td>${t.status || ''}</td>
           <td>${t.expected_ready || ''}</td>
           <td>${t.actual_ready || ''}</td>
           <td>${t.delay_reason || ''}</td>
-          <td>
-            <a href="/ticket-update.html?id=${t.id}" class="btn">✏️ Update</a>
-          </td>
+          <td><a href="/ticket-update.html?id=${t.id}" class="btn">✏️ Update</a></td>
         `;
         tbody.appendChild(tr);
       });
