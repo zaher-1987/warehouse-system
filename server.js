@@ -217,10 +217,10 @@ app.get("/tickets", async (req, res) => {
   res.json(enriched);
 });
 
-// ✅ Update ticket (fix numeric/string mismatch)
+// ✅ Update ticket (with status support)
 app.post("/update-ticket-status", async (req, res) => {
   try {
-    const { id, expected_ready, actual_ready, delay_reason } = req.body;
+    const { id, expected_ready, actual_ready, delay_reason, status } = req.body;
     const user = req.session.user;
 
     if (
@@ -237,7 +237,7 @@ app.post("/update-ticket-status", async (req, res) => {
     }
 
     const tickets = await readJson(TICKET_FILE);
-    const ticketId = Number(id); // ✅ ensure numeric comparison
+    const ticketId = Number(id);
 
     const idx = tickets.findIndex((t) => Number(t.id) === ticketId);
     if (idx === -1)
@@ -248,6 +248,7 @@ app.post("/update-ticket-status", async (req, res) => {
     if (expected_ready) tickets[idx].expected_ready = expected_ready;
     if (actual_ready) tickets[idx].actual_ready = actual_ready;
     if (delay_reason) tickets[idx].delay_reason = delay_reason;
+    if (status) tickets[idx].status = status;
 
     await writeJson(TICKET_FILE, tickets);
     console.log(`✅ Ticket #${id} updated by ${user.username}`);
