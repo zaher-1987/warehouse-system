@@ -1,4 +1,3 @@
-
 const express = require('express');
 const bodyParser = require('body-parser');
 const session = require('express-session');
@@ -90,8 +89,8 @@ app.post('/warehouses', (req, res) => {
   writeJson(WAREHOUSE_FILE, warehouses);
   res.status(201).json(newWarehouse);
 });
-// ✅ Add this route BELOW your existing /warehouses GET and POST routes in server.js
 
+// ✅ Add new warehouse (admin only)
 app.post('/add-warehouse', requireAdmin, (req, res) => {
   const { name } = req.body;
 
@@ -113,7 +112,9 @@ app.post('/add-warehouse', requireAdmin, (req, res) => {
   console.log('✅ Added new warehouse:', newWarehouse);
   res.json({ success: true });
 });
-// Items
+
+// ===================== 📦 ITEMS =====================
+
 app.get('/items', (req, res) => {
   const user = req.session.user;
   if (!user) return res.status(403).json([]);
@@ -155,10 +156,11 @@ app.post('/update-item', requireAdmin, (req, res) => {
   }
 });
 
-// ✅ Ticket Routes (Fixed: include warehouse_name)
+// ===================== 🎫 TICKETS =====================
+
+// ✅ Get all tickets
 app.get('/tickets', (req, res) => {
   const enrichedTickets = tickets.map(ticket => {
-    // Handle two possible formats: old "warehouse" string OR warehouse_id
     const warehouse =
       ticket.warehouse_id
         ? warehouses.find(w => w.id === ticket.warehouse_id)
@@ -173,6 +175,7 @@ app.get('/tickets', (req, res) => {
   res.json(enrichedTickets);
 });
 
+// ✅ Create new ticket
 app.post('/tickets', (req, res) => {
   const newId = tickets.length ? tickets.length + 1 : 1;
   const newTicket = { id: newId, ...req.body };
@@ -181,7 +184,32 @@ app.post('/tickets', (req, res) => {
   res.status(201).json(newTicket);
 });
 
-// ✅ Inventory Status
+// ✅ Update ticket status (Main Warehouse or Admin)
+app.post('/update-ticket-status', (req, res) => {
+  const { id, expected_ready, actual_ready, delay_reason } = req.body;
+  const user = req.session.user;
+
+  if (!user || !(user.role === 'admin' || (user.warehouse_name && user.warehouse_name.toLowerCase().includes('main')))) {
+    return res.status(403).json({ success: false, message: 'Not authorized' });
+  }
+
+  const ticketIndex = tickets.findIndex(t => t.id === Number(id));
+  if (ticketIndex === -1) {
+    return res.status(404).json({ success: false, message: 'Ticket not found' });
+  }
+
+  if (expected_ready) tickets[ticketIndex].expected_ready = expected_ready;
+  if (actual_ready) tickets[ticketIndex].actual_ready = actual_ready;
+  if (delay_reason) tickets[ticketIndex].delay_reason = delay_reason;
+
+  writeJson(TICKET_FILE, tickets);
+
+  console.log(`✅ Ticket #${id} updated by ${user.username}`);
+  res.json({ success: true, ticket: tickets[ticketIndex] });
+});
+
+// ===================== 📊 INVENTORY STATUS =====================
+
 app.get('/inventory-status', (req, res) => {
   const mainWarehouse = warehouses.find(w => w.name.toLowerCase().includes('main'));
   if (!mainWarehouse) return res.json([]);
@@ -219,7 +247,8 @@ app.get('/inventory-status', (req, res) => {
   res.json(statusData);
 });
 
-// ✅ Auto-ticket generation logic
+// ===================== ⚙️ AUTO-TICKET GENERATION =====================
+
 function checkAutoTicketLogic() {
   const grouped = {};
   items.forEach(item => {
@@ -264,7 +293,8 @@ function checkAutoTicketLogic() {
   writeJson(TICKET_FILE, tickets);
 }
 
-// Redirect root URL to login page
+// ===================== 🔁 REDIRECT ROOT =====================
+
 app.get('/', (req, res) => {
   res.redirect('/login.html');
 });
