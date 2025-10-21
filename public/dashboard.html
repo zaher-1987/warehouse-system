@@ -3,61 +3,317 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>📦 Warehouse Dashboard</title>
+  <title>📦 Warehouse Inventory Dashboard</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 30px; background: #f4f6f8; position: relative; }
-    h2 { margin-bottom: 10px; }
-    /* ... rest of your styles ... */
+    body {
+      font-family: Arial, sans-serif;
+      padding: 30px;
+      background: #f4f6f8;
+      position: relative;
+    }
+    h2 {
+      margin-bottom: 10px;
+    }
+    #userWarehouseInfo {
+      margin-bottom: 20px;
+      font-style: italic;
+    }
+    select, input[type="text"] {
+      padding: 6px 10px;
+      margin-right: 10px;
+    }
+    button {
+      padding: 8px 16px;
+      background: #198754;
+      color: white;
+      border: none;
+      cursor: pointer;
+      border-radius: 4px;
+      margin-bottom: 20px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 10px;
+      text-align: left;
+    }
+    th {
+      background: #f2f2f2;
+      cursor: pointer;
+    }
+    .green { background-color: #d4edda; color: #155724; }
+    .orange { background-color: #fff3cd; color: #856404; }
+    .red { background-color: #f8d7da; color: #721c24; }
+    .unknown { background-color: #e2e3e5; color: #6c757d; }
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 999;
+      left: 0; top: 0;
+      width: 100%; height: 100%;
+      background-color: rgba(0,0,0,0.5);
+    }
+    .modal-content {
+      background: white;
+      margin: 10% auto;
+      padding: 20px;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 900px;
+      height: 600px;
+      position: relative;
+    }
+    .close {
+      position: absolute;
+      top: 10px; right: 15px;
+      font-size: 24px;
+      cursor: pointer;
+    }
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+    .logout {
+      position: absolute;
+      top: 20px;
+      right: 30px;
+      background: #dc3545;
+      color: white;
+      padding: 8px 14px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .ticket-button {
+      position: absolute;
+      top: 20px;
+      right: 130px;
+      background: #0d6efd;
+      color: white;
+      padding: 8px 14px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      text-decoration: none;
+    }
   </style>
 </head>
 <body>
-  <!-- Admin buttons -->
   <a class="logout" href="/logout">🚪 Logout</a>
   <a class="ticket-button" id="viewTicketsBtn" href="/ticket-view.html" style="display:none;">🎫 View Tickets</a>
-  <button id="createWarehouseBtn" style="display:none;">➕ Create Warehouse</button>
-
   <h2>📦 Warehouse Inventory Dashboard</h2>
   <p id="userWarehouseInfo">Checking session...</p>
-  <!-- Modal for create warehouse -->
-  <div id="createWarehouseModal" class="modal">
+
+  <label for="warehouseFilter">Filter by Warehouse:</label>
+  <select id="warehouseFilter">
+    <option value="">All</option>
+  </select>
+
+  <button onclick="exportInventory()">📁 Export to Excel</button>
+  <button onclick="openChartModal()">📊 View Charts</button>
+  <button id="editToggle" style="display:none;" onclick="toggleEditMode()">✏️ Enable Edit Mode</button>
+  <button id="createWarehouseBtn" style="display:none;" onclick="showCreateWarehouse()">➕ Create Warehouse</button>
+
+  <div id="createWarehouseContainer" style="display:none; margin-bottom:20px;">
+    <h4>Create New Warehouse</h4>
+    <input type="text" id="newWarehouseInput" placeholder="Enter warehouse name">
+    <button onclick="saveWarehouse()">✅ Save</button>
+  </div>
+
+  <table id="inventoryTable">
+    <thead>
+      <tr>
+        <th>Warehouse</th>
+        <th>Item ID</th>
+        <th>Item Name</th>
+        <th>Quantity</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <div id="chartModal" class="modal">
     <div class="modal-content">
-      <span class="close" onclick="closeWarehouseModal()">×</span>
-      <h3>Create New Warehouse</h3>
-      <input id="warehouseNameInput" placeholder="Enter warehouse name" style="padding:8px; width: 80%;" />
-      <button onclick="submitNewWarehouse()">✅ Save</button>
+      <span class="close" onclick="closeChartModal()">×</span>
+      <iframe src="warehouse-charts.html"></iframe>
     </div>
   </div>
+
   <script>
+    let editMode = false;
+    let userRole = 'staff';
+    let assignedWarehouse = '';
+
     async function checkSession() {
       const res = await fetch('/session-status');
       const data = await res.json();
-      if (data?.user?.role === 'admin') {
-        document.getElementById("createWarehouseBtn").style.display = "inline-block";
+      if (!data.loggedIn) {
+        window.location.href = '/login.html';
+        return;
+      }
+
+      userRole = data.user.role;
+      assignedWarehouse = data.user.warehouse_name || '';
+
+      document.getElementById('userWarehouseInfo').textContent =
+        userRole === 'admin'
+          ? 'Logged in as Admin (all warehouses)'
+          : `Logged in as ${userRole.charAt(0).toUpperCase() + userRole.slice(1)} - Warehouse: ${assignedWarehouse}`;
+
+      if (userRole === 'admin') {
+        document.getElementById('editToggle').style.display = 'inline-block';
+        document.getElementById('createWarehouseBtn').style.display = 'inline-block';
+      }
+      if (userRole === 'staff') {
+        document.getElementById('warehouseFilter').style.display = 'none';
+      }
+      if (userRole === 'admin' || userRole === 'production') {
+        document.getElementById('viewTicketsBtn').style.display = 'inline-block';
+      }
+
+      loadInventory();
+    }
+
+    function toggleEditMode() {
+      if (userRole !== 'admin') {
+        alert('❌ Only admin can edit items.');
+        return;
+      }
+      editMode = !editMode;
+      document.getElementById('editToggle').textContent =
+        editMode ? '🚫 Disable Edit Mode' : '✏️ Enable Edit Mode';
+      loadInventory();
+    }
+
+    async function loadInventory() {
+      const res = await fetch('/inventory-status');
+      const data = await res.json();
+      const tbody = document.querySelector('#inventoryTable tbody');
+      const filter = document.getElementById('warehouseFilter').value;
+
+      let warehouses = new Set();
+      tbody.innerHTML = '';
+
+      data.forEach(item => {
+        warehouses.add(item.warehouse_name);
+
+        const isVisible =
+          userRole === 'admin'
+            ? !filter || item.warehouse_name === filter
+            : item.warehouse_name === assignedWarehouse;
+
+        if (isVisible) {
+          const tr = document.createElement('tr');
+          const cssClass = ['green', 'orange', 'red'].includes(item.status)
+            ? item.status
+            : 'unknown';
+          tr.classList.add(cssClass);
+
+          let statusIcon = '';
+          switch (item.status) {
+            case 'green': statusIcon = '✅'; break;
+            case 'orange': statusIcon = '⚠️'; break;
+            case 'red': statusIcon = '❌'; break;
+            default: statusIcon = '❓';
+          }
+
+          tr.innerHTML = `
+            <td>${item.warehouse_name}</td>
+            <td>${item.item_id}</td>
+            <td contenteditable="${editMode}" data-field="name">${item.name}</td>
+            <td contenteditable="${editMode}" data-field="quantity">${item.quantity}</td>
+            <td>${statusIcon}</td>
+            ${editMode ? '<td><button onclick="saveItem(this)">💾 Save</button></td>' : ''}
+          `;
+          tbody.appendChild(tr);
+        }
+      });
+
+      if (userRole === 'admin') {
+        const warehouseSelect = document.getElementById('warehouseFilter');
+        warehouseSelect.innerHTML = '<option value="">All</option>';
+        [...warehouses].forEach(w => {
+          warehouseSelect.innerHTML += `<option value="${w}">${w}</option>`;
+        });
       }
     }
-    document.getElementById("createWarehouseBtn")?.addEventListener("click", () => {
-      document.getElementById("createWarehouseModal").style.display = "block";
-    });
-    function closeWarehouseModal() {
-      document.getElementById("createWarehouseModal").style.display = "none";
-    }
-    async function submitNewWarehouse() {
-      const name = document.getElementById("warehouseNameInput").value;
-      if (!name) return alert("Warehouse name required.");
-      const res = await fetch('/create-warehouse', {
+
+    async function saveItem(btn) {
+      if (userRole !== 'admin') {
+        alert('❌ Only admin can edit items.');
+        return;
+      }
+
+      const row = btn.closest('tr');
+      const warehouse = row.children[0].textContent.trim();
+      const item_id = row.children[1].textContent.trim();
+      const name = row.querySelector('[data-field="name"]').textContent.trim();
+      const quantity = parseInt(row.querySelector('[data-field="quantity"]').textContent.trim());
+
+      const res = await fetch('/update-item', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ warehouse_name: name })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ warehouse, item_id, name, quantity })
       });
+
       const result = await res.json();
       if (result.success) {
-        alert("✅ Warehouse added.");
-        closeWarehouseModal();
-        location.reload();
+        btn.disabled = true;
+        btn.textContent = '✔️ Saved';
+        setTimeout(() => {
+          btn.disabled = false;
+          btn.textContent = '💾 Save';
+          loadInventory();
+        }, 1000);
       } else {
-        alert("❌ Failed: " + result.message);
+        alert('❌ Update failed: ' + result.message);
       }
     }
+
+    function exportInventory() {
+      window.location.href = '/export-inventory';
+    }
+
+    function openChartModal() {
+      document.getElementById('chartModal').style.display = 'block';
+    }
+
+    function closeChartModal() {
+      document.getElementById('chartModal').style.display = 'none';
+    }
+
+    function showCreateWarehouse() {
+      document.getElementById('createWarehouseContainer').style.display = 'block';
+    }
+
+    async function saveWarehouse() {
+      const name = document.getElementById('newWarehouseInput').value.trim();
+      if (!name) return alert('Please enter a warehouse name.');
+      const res = await fetch('/add-warehouse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('✅ Warehouse added successfully.');
+        document.getElementById('createWarehouseContainer').style.display = 'none';
+        document.getElementById('newWarehouseInput').value = '';
+        loadInventory();
+      } else {
+        alert('❌ Failed to add warehouse.');
+      }
+    }
+
+    document.getElementById('warehouseFilter').addEventListener('change', loadInventory);
+    setInterval(loadInventory, 30000);
     checkSession();
   </script>
 </body>
