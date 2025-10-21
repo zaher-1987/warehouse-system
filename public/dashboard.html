@@ -354,7 +354,7 @@
         status: 'open'
       };
 
-      const res = await fetch('/create-ticket', {
+      const res = await fetch('/send-stock', {     // ✅ CORRECT
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(ticket)
