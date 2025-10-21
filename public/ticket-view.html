@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <title>🎫 Tickets - Warehouse System</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 30px; background: #f8f9fa; }
+    body { font-family: Arial, sans-serif; padding: 30px; background: #f8f9fa; position: relative; }
     h2 { margin-bottom: 20px; }
     table { width: 100%; border-collapse: collapse; background: #fff; }
     th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
@@ -13,10 +13,14 @@
     button.save-btn { padding: 6px 10px; background: #0d6efd; color: white; border: none; border-radius: 4px; cursor: pointer; }
     button.save-btn:hover { background: #0b5ed7; }
     .logout { position: absolute; top: 20px; right: 30px; background: #dc3545; color: white; padding: 8px 14px; border: none; border-radius: 5px; text-decoration: none; }
+    .home-btn { position: absolute; top: 20px; right: 130px; background: #0d6efd; color: white; padding: 8px 14px; border-radius: 5px; text-decoration: none; }
+    .home-btn:hover { background: #0b5ed7; }
   </style>
 </head>
 <body>
+  <a class="home-btn" href="/dashboard.html">🏠 Home</a>
   <a class="logout" href="/logout">🚪 Logout</a>
+
   <h2>🎫 Tickets Overview</h2>
 
   <table id="ticketTable">
