@@ -41,9 +41,7 @@ let users = readJson(USERS_FILE);
 
 // ===================== 🌐 AUTH =====================
 
-app.get('/login', (req, res) => {
-  res.redirect('/login.html');
-});
+app.get('/login', (req, res) => res.redirect('/login.html'));
 
 app.post('/login', (req, res) => {
   const { username, password } = req.body;
@@ -66,9 +64,7 @@ app.get('/logout', (req, res) => {
 });
 
 app.get('/session-status', (req, res) => {
-  if (req.session.user) {
-    return res.json({ loggedIn: true, user: req.session.user });
-  }
+  if (req.session.user) return res.json({ loggedIn: true, user: req.session.user });
   res.json({ loggedIn: false });
 });
 
@@ -90,37 +86,30 @@ app.post('/warehouses', (req, res) => {
   res.status(201).json(newWarehouse);
 });
 
-// ✅ Add new warehouse (admin only)
+// ✅ Add new warehouse
 app.post('/add-warehouse', requireAdmin, (req, res) => {
   const { name } = req.body;
-
   if (!name || typeof name !== 'string' || !name.trim()) {
-    return res.status(400).json({ success: false, message: 'Warehouse name is required.' });
+    return res.status(400).json({ success: false, message: 'Warehouse name required.' });
   }
-
   const trimmed = name.trim();
-  const existing = warehouses.find(w => w.name.toLowerCase() === trimmed.toLowerCase());
-  if (existing) {
+  if (warehouses.find(w => w.name.toLowerCase() === trimmed.toLowerCase())) {
     return res.status(400).json({ success: false, message: 'Warehouse already exists.' });
   }
-
   const newId = warehouses.length ? Math.max(...warehouses.map(w => w.id)) + 1 : 1;
   const newWarehouse = { id: newId, name: trimmed };
   warehouses.push(newWarehouse);
   writeJson(WAREHOUSE_FILE, warehouses);
-
   console.log('✅ Added new warehouse:', newWarehouse);
   res.json({ success: true });
 });
 
-// ===================== 📦 ITEMS =====================
+// ===================== ITEMS =====================
 
 app.get('/items', (req, res) => {
   const user = req.session.user;
   if (!user) return res.status(403).json([]);
-
   if (user.role === 'admin') return res.json(items);
-
   const filtered = items.filter(i => i.warehouse_id === user.warehouse_id);
   res.json(filtered);
 });
@@ -133,7 +122,7 @@ app.post('/items', (req, res) => {
   res.status(201).json(newItem);
 });
 
-// ✅ Admin-only item update
+// ✅ Update Item (admin only)
 app.post('/update-item', requireAdmin, (req, res) => {
   try {
     const { warehouse, item_id, name, quantity } = req.body;
@@ -156,26 +145,19 @@ app.post('/update-item', requireAdmin, (req, res) => {
   }
 });
 
-// ===================== 🎫 TICKETS =====================
+// ===================== TICKETS =====================
 
-// ✅ Get all tickets
 app.get('/tickets', (req, res) => {
   const enrichedTickets = tickets.map(ticket => {
     const warehouse =
       ticket.warehouse_id
         ? warehouses.find(w => w.id === ticket.warehouse_id)
         : warehouses.find(w => w.name === ticket.warehouse);
-
-    return {
-      ...ticket,
-      warehouse_name: warehouse ? warehouse.name : 'Unknown'
-    };
+    return { ...ticket, warehouse_name: warehouse ? warehouse.name : 'Unknown' };
   });
-
   res.json(enrichedTickets);
 });
 
-// ✅ Create new ticket
 app.post('/tickets', (req, res) => {
   const newId = tickets.length ? tickets.length + 1 : 1;
   const newTicket = { id: newId, ...req.body };
@@ -184,36 +166,31 @@ app.post('/tickets', (req, res) => {
   res.status(201).json(newTicket);
 });
 
-// ✅ Update ticket status (Main Warehouse or Admin)
+// ✅ Update ticket status (Admin or Main Warehouse)
 app.post('/update-ticket-status', (req, res) => {
   const { id, expected_ready, actual_ready, delay_reason } = req.body;
   const user = req.session.user;
-
   if (!user || !(user.role === 'admin' || (user.warehouse_name && user.warehouse_name.toLowerCase().includes('main')))) {
     return res.status(403).json({ success: false, message: 'Not authorized' });
   }
 
-  const ticketIndex = tickets.findIndex(t => t.id === Number(id));
-  if (ticketIndex === -1) {
-    return res.status(404).json({ success: false, message: 'Ticket not found' });
-  }
+  const idx = tickets.findIndex(t => t.id === Number(id));
+  if (idx === -1) return res.status(404).json({ success: false, message: 'Ticket not found' });
 
-  if (expected_ready) tickets[ticketIndex].expected_ready = expected_ready;
-  if (actual_ready) tickets[ticketIndex].actual_ready = actual_ready;
-  if (delay_reason) tickets[ticketIndex].delay_reason = delay_reason;
+  if (expected_ready) tickets[idx].expected_ready = expected_ready;
+  if (actual_ready) tickets[idx].actual_ready = actual_ready;
+  if (delay_reason) tickets[idx].delay_reason = delay_reason;
 
   writeJson(TICKET_FILE, tickets);
-
   console.log(`✅ Ticket #${id} updated by ${user.username}`);
-  res.json({ success: true, ticket: tickets[ticketIndex] });
+  res.json({ success: true, ticket: tickets[idx] });
 });
 
-// ===================== 📊 INVENTORY STATUS =====================
+// ===================== INVENTORY =====================
 
 app.get('/inventory-status', (req, res) => {
   const mainWarehouse = warehouses.find(w => w.name.toLowerCase().includes('main'));
   if (!mainWarehouse) return res.json([]);
-
   const user = req.session.user;
   const userWarehouseId = user?.warehouse_id || null;
   const isAdmin = user?.role === 'admin';
@@ -224,56 +201,40 @@ app.get('/inventory-status', (req, res) => {
       const warehouse = warehouses.find(w => w.id === item.warehouse_id);
       const mainItem = items.find(i => i.item_id === item.item_id && i.warehouse_id === mainWarehouse.id);
       const mainQty = mainItem ? mainItem.quantity : 0;
-
       let status = 'unknown';
       if (item.warehouse_id !== mainWarehouse.id && mainQty > 0) {
-        const percent = (item.quantity / mainQty) * 100;
-        if (percent <= 10) status = 'red';
-        else if (percent <= 60) status = 'orange';
+        const pct = (item.quantity / mainQty) * 100;
+        if (pct <= 10) status = 'red';
+        else if (pct <= 60) status = 'orange';
         else status = 'green';
-      } else if (item.warehouse_id === mainWarehouse.id) {
-        status = 'green';
-      }
-
-      return {
-        warehouse_name: warehouse?.name || '-',
-        item_id: item.item_id,
-        name: item.name,
-        quantity: item.quantity,
-        status
-      };
+      } else if (item.warehouse_id === mainWarehouse.id) status = 'green';
+      return { warehouse_name: warehouse?.name || '-', item_id: item.item_id, name: item.name, quantity: item.quantity, status };
     });
-
   res.json(statusData);
 });
 
-// ===================== ⚙️ AUTO-TICKET GENERATION =====================
+// ===================== AUTO-TICKET =====================
 
 function checkAutoTicketLogic() {
   const grouped = {};
-  items.forEach(item => {
-    if (!grouped[item.item_id]) grouped[item.item_id] = [];
-    grouped[item.item_id].push(item);
+  items.forEach(i => {
+    if (!grouped[i.item_id]) grouped[i.item_id] = [];
+    grouped[i.item_id].push(i);
   });
-
   const mainWarehouse = warehouses.find(w => w.name.toLowerCase().includes('main'));
   if (!mainWarehouse) return;
-
   const mainId = mainWarehouse.id;
 
   Object.entries(grouped).forEach(([itemId, group]) => {
     const mainItem = group.find(i => i.warehouse_id === mainId);
     if (!mainItem) return;
-
     group.forEach(i => {
       if (i.warehouse_id !== mainId) {
-        const percent = (i.quantity / mainItem.quantity) * 100;
+        const pct = (i.quantity / mainItem.quantity) * 100;
         const wh = warehouses.find(w => w.id === i.warehouse_id);
         if (!wh) return;
-
-        const urgent = percent <= 20;
-
-        if (percent <= 60 && !tickets.some(t => t.item_id === itemId && t.warehouse === wh.name)) {
+        const urgent = pct <= 20;
+        if (pct <= 60 && !tickets.some(t => t.item_id === itemId && t.warehouse === wh.name)) {
           tickets.push({
             id: tickets.length ? tickets.length + 1 : 1,
             warehouse_id: wh.id,
@@ -289,16 +250,11 @@ function checkAutoTicketLogic() {
       }
     });
   });
-
   writeJson(TICKET_FILE, tickets);
 }
 
-// ===================== 🔁 REDIRECT ROOT =====================
+// Root
+app.get('/', (req, res) => res.redirect('/login.html'));
 
-app.get('/', (req, res) => {
-  res.redirect('/login.html');
-});
-
-// ✅ Start Server
 checkAutoTicketLogic();
 app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
