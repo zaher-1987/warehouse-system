@@ -105,7 +105,7 @@
 </head>
 <body>
   <a class="logout" href="/logout">🚪 Logout</a>
-  <a class="ticket-button" id="viewTicketsBtn" href="/ticket-view.html" style="display:none;">🎫 View Tickets</a>
+  <a class="ticket-button" id="viewTicketsBtn" href="#" style="display:none;">🎫 View Tickets</a>
   <h2>📦 Warehouse Inventory Dashboard</h2>
   <p id="userWarehouseInfo">Checking session...</p>
 
@@ -166,15 +166,23 @@
           ? 'Logged in as Admin (all warehouses)'
           : `Logged in as ${userRole.charAt(0).toUpperCase() + userRole.slice(1)} - Warehouse: ${assignedWarehouse}`;
 
+      // 🎫 View Tickets logic for each role
+      const viewBtn = document.getElementById('viewTicketsBtn');
+      if (userRole === 'production') {
+        viewBtn.href = '/production-view.html';
+        viewBtn.style.display = 'inline-block';
+      } else if (userRole === 'admin') {
+        viewBtn.href = '/ticket-view.html';
+        viewBtn.style.display = 'inline-block';
+      }
+
       if (userRole === 'admin') {
         document.getElementById('editToggle').style.display = 'inline-block';
         document.getElementById('createWarehouseBtn').style.display = 'inline-block';
       }
+
       if (userRole === 'staff') {
         document.getElementById('warehouseFilter').style.display = 'none';
-      }
-      if (userRole === 'admin' || userRole === 'production') {
-        document.getElementById('viewTicketsBtn').style.display = 'inline-block';
       }
 
       loadInventory();
