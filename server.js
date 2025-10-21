@@ -248,7 +248,8 @@ app.post('/send-stock', async (req, res) => {
     const tickets = await readJson(TICKET_FILE);
 
     const warehouses = await readJson(WAREHOUSE_FILE);
-const fromWarehouse = warehouses.find(w => w.name === from);
+const currentUser = req.session.user;
+const fromWarehouse = warehouses.find(w => w.id === currentUser?.warehouse_id);
 if (!fromWarehouse) {
   return res.json({ success: false, message: 'Main warehouse not found.' });
 }
