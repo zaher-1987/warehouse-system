@@ -1,60 +1,65 @@
 [
   {
-    "warehouse_name": "Main Warehouse",
     "item_id": "H001",
     "name": "HeartRX",
     "quantity": 10000,
-    "warehouse_id": 1
+    "warehouse_id": 1,
+    "warehouse_name": "Main Warehouse"
   },
   {
-    "warehouse_name": "Main Warehouse",
     "item_id": "K001",
     "name": "KidneyRX",
     "quantity": 8000,
-    "warehouse_id": 1
+    "warehouse_id": 1,
+    "warehouse_name": "Main Warehouse"
   },
   {
-    "warehouse_name": "Main Warehouse",
     "item_id": "L001",
     "name": "LiverRX (Cats)",
-    "quantity": 6000, 
-    "warehouse_id": 1
+    "quantity": 6000,
+    "warehouse_id": 1,
+    "warehouse_name": "Main Warehouse"
   },
   {
-    "warehouse_name": "Main Warehouse",
     "item_id": "L002",
     "name": "LiverRX (Dogs)",
     "quantity": 5000,
-    "warehouse_id": 1
+    "warehouse_id": 1,
+    "warehouse_name": "Main Warehouse"
   },
   {
     "item_id": "K001",
     "name": "KidneyRx",
     "warehouse_id": 1,
+    "warehouse_name": "Main Warehouse",
     "quantity": 3000
   },
   {
     "item_id": "L001",
     "name": "LiverRx",
     "warehouse_id": 2,
+    "warehouse_name": "Indonesia",
     "quantity": 200
   },
   {
     "item_id": "H001",
     "name": "HeartRx",
     "warehouse_id": 3,
+    "warehouse_name": "India",
     "quantity": 150
   },
   {
     "item_id": "K001",
     "name": "KidneyRx",
     "warehouse_id": 4,
+    "warehouse_name": "Philippines",
     "quantity": 90
   },
   {
     "item_id": "L001",
     "name": "LiverRx",
     "warehouse_id": 5,
+    "warehouse_name": "USA",
     "quantity": 70
   }
 ]
