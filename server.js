@@ -109,17 +109,63 @@ app.get('/items', async (req, res) => {
 
   const items = await readJson(ITEM_FILE);
   if (user.role === 'admin') {
-  const warehouses = await readJson(WAREHOUSE_FILE);
-  const enriched = items.map((item) => {
-    const warehouse = warehouses.find((w) => w.id === item.warehouse_id);
-    return { ...item, warehouse_name: warehouse?.name || '-' };
-  });
-  return res.json(enriched);
-}
+    const warehouses = await readJson(WAREHOUSE_FILE);
+    const enriched = items.map((item) => {
+      const warehouse = warehouses.find((w) => w.id === item.warehouse_id);
+      return { ...item, warehouse_name: warehouse?.name || '-' };
+    });
+    return res.json(enriched);
+  }
+
   const filtered = items.filter((i) => i.warehouse_id === user.warehouse_id);
   res.json(filtered);
 });
 
+// ✅ Inventory Status (the route dashboard.html uses)
+app.get('/inventory-status', async (req, res) => {
+  try {
+    const warehouses = await readJson(WAREHOUSE_FILE);
+    const items = await readJson(ITEM_FILE);
+
+    const mainWarehouse = warehouses.find(w =>
+      w.name.toLowerCase().includes('main')
+    );
+    if (!mainWarehouse) {
+      return res.json([]);
+    }
+
+    const mainItems = items.filter(i => i.warehouse_id === mainWarehouse.id);
+    const result = items.map(i => {
+      const warehouse = warehouses.find(w => w.id === i.warehouse_id);
+      const mainItem = mainItems.find(m => m.item_id === i.item_id);
+
+      let status = 'unknown';
+      if (mainItem && i.warehouse_id !== mainWarehouse.id) {
+        const pct = (i.quantity / mainItem.quantity) * 100;
+        if (pct <= 10) status = 'red';
+        else if (pct <= 60) status = 'orange';
+        else status = 'green';
+      } else if (i.warehouse_id === mainWarehouse.id) {
+        status = 'green';
+      }
+
+      return {
+        warehouse_name: warehouse?.name || '-',
+        item_id: i.item_id,
+        name: i.name,
+        quantity: i.quantity,
+        status,
+      };
+    });
+
+    res.json(result);
+  } catch (err) {
+    console.error('❌ Error in /inventory-status:', err);
+    res.status(500).json({ success: false, message: 'Server error.' });
+  }
+});
+
+// ✅ Update Item
 app.post('/update-item', requireAdmin, async (req, res) => {
   try {
     const { warehouse, item_id, name, quantity } = req.body;
@@ -201,7 +247,6 @@ app.post('/send-stock', async (req, res) => {
     const items = await readJson(ITEM_FILE);
     const tickets = await readJson(TICKET_FILE);
 
-    // Find item in main warehouse
     const item = items.find(
       (i) => i.item_id === item_id && i.warehouse_name === from
     );
@@ -211,11 +256,9 @@ app.post('/send-stock', async (req, res) => {
     if (item.quantity < quantity)
       return res.json({ success: false, message: 'Not enough stock in main warehouse.' });
 
-    // Deduct stock
     item.quantity -= quantity;
     await writeJson(ITEM_FILE, items);
 
-    // Create ticket
     const newTicket = {
       id: Date.now().toString(),
       from,
