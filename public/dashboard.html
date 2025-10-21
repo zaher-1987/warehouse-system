@@ -105,6 +105,7 @@
   <button onclick="exportInventory()">📁 Export to Excel</button>
   <button onclick="openChartModal()">📊 View Charts</button>
   <button id="editToggle" style="display:none;" onclick="toggleEditMode()">✏️ Enable Edit Mode</button>
+  <button id="ticketButton" style="display:none;" onclick="openTicketModal()">🎫 View Tickets</button>
 
   <table id="inventoryTable">
     <thead>
@@ -123,6 +124,13 @@
     <div class="modal-content">
       <span class="close" onclick="closeChartModal()">×</span>
       <iframe src="warehouse-charts.html"></iframe>
+    </div>
+  </div>
+
+  <div id="ticketModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeTicketModal()">×</span>
+      <iframe src="ticket-view.html"></iframe>
     </div>
   </div>
 
@@ -145,12 +153,15 @@
       document.getElementById('userWarehouseInfo').textContent =
         userRole === 'admin'
           ? 'Logged in as Admin (all warehouses)'
-          : `Logged in as Staff - Warehouse: ${assignedWarehouse}`;
+          : `Logged in as ${userRole} - Warehouse: ${assignedWarehouse}`;
 
       if (userRole === 'admin') {
         document.getElementById('editToggle').style.display = 'inline-block';
-      }
-      if (userRole === 'staff') {
+        document.getElementById('ticketButton').style.display = 'inline-block';
+      } else if (userRole === 'main' || userRole === 'production') {
+        document.getElementById('ticketButton').style.display = 'inline-block';
+        document.getElementById('warehouseFilter').style.display = 'none';
+      } else {
         document.getElementById('warehouseFilter').style.display = 'none';
       }
 
@@ -264,6 +275,14 @@
 
     function closeChartModal() {
       document.getElementById('chartModal').style.display = 'none';
+    }
+
+    function openTicketModal() {
+      document.getElementById('ticketModal').style.display = 'block';
+    }
+
+    function closeTicketModal() {
+      document.getElementById('ticketModal').style.display = 'none';
     }
 
     document.getElementById('warehouseFilter').addEventListener('change', loadInventory);
