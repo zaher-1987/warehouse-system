@@ -9,11 +9,9 @@
       padding: 30px;
       max-width: 600px;
       margin: auto;
+      position: relative;
     }
-    label {
-      display: block;
-      margin-top: 15px;
-    }
+    label { display: block; margin-top: 15px; }
     input, select, textarea {
       width: 100%;
       padding: 8px;
@@ -27,9 +25,34 @@
       color: white;
       border: none;
     }
+    .home-btn {
+      position: absolute;
+      top: 20px;
+      right: 130px;
+      background: #0d6efd;
+      color: white;
+      padding: 8px 14px;
+      border-radius: 5px;
+      text-decoration: none;
+    }
+    .home-btn:hover { background: #0b5ed7; }
+    .logout {
+      position: absolute;
+      top: 20px;
+      right: 30px;
+      background: #dc3545;
+      color: white;
+      padding: 8px 14px;
+      border-radius: 5px;
+      text-decoration: none;
+    }
+    .logout:hover { background: #c82333; }
   </style>
 </head>
 <body>
+  <a class="home-btn" href="/dashboard.html">🏠 Home</a>
+  <a class="logout" href="/logout">🚪 Logout</a>
+
   <h1>🔧 Update Ticket</h1>
   <form id="updateForm">
     <label>Available Quantity:</label>
@@ -48,7 +71,7 @@
     <input type="date" id="actual" required>
 
     <label>Delay Reason / Notes:</label>
-    <textarea id="delay_reason" rows="4" placeholder="e.g., Machine A failed, supplier needs 5 days to fix..."></textarea>
+    <textarea id="delay_reason" rows="4"></textarea>
 
     <label>Ticket Status:</label>
     <select id="status" required>
@@ -79,20 +102,15 @@
 
       fetch(`/tickets/${ticketId}`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updatedTicket)
       })
       .then(res => res.json())
-      .then(data => {
+      .then(() => {
         alert("✅ Ticket updated!");
         window.location.href = "/tickets.html";
       })
-      .catch(err => {
-        alert("❌ Failed to update ticket.");
-        console.error(err);
-      });
+      .catch(() => alert("❌ Failed to update ticket."));
     });
   </script>
 </body>
