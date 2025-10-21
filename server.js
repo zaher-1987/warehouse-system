@@ -203,14 +203,18 @@ app.post("/update-item", requireAdmin, async (req, res) => {
 app.get("/tickets", async (req, res) => {
   const warehouses = await readJson(WAREHOUSE_FILE);
   const tickets = await readJson(TICKET_FILE);
+  const items = await readJson(ITEM_FILE);
 
   const enriched = tickets.map((t) => {
-    const warehouse = warehouses.find(
-      (w) => w.name === t.from_warehouse || w.name === t.to_warehouse
-    );
+    const fromWarehouse = warehouses.find(w => w.name === t.from_warehouse);
+    const toWarehouse = warehouses.find(w => w.name === t.to_warehouse);
+    const item = items.find(i => i.item_id === t.item_id);
+
     return {
       ...t,
-      warehouse_name: warehouse ? warehouse.name : "Unknown",
+      from: fromWarehouse?.name || "Unknown",
+      to: toWarehouse?.name || "Unknown",
+      item_name: item?.name || "Unknown"
     };
   });
 
