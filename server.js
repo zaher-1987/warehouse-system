@@ -108,7 +108,14 @@ app.get('/items', async (req, res) => {
   if (!user) return res.status(403).json([]);
 
   const items = await readJson(ITEM_FILE);
-  if (user.role === 'admin') return res.json(items);
+  if (user.role === 'admin') {
+  const warehouses = await readJson(WAREHOUSE_FILE);
+  const enriched = items.map((item) => {
+    const warehouse = warehouses.find((w) => w.id === item.warehouse_id);
+    return { ...item, warehouse_name: warehouse?.name || '-' };
+  });
+  return res.json(enriched);
+}
   const filtered = items.filter((i) => i.warehouse_id === user.warehouse_id);
   res.json(filtered);
 });
