@@ -2,12 +2,8 @@
   {
     "username": "admin",
     "password": "admin123",
-    "role": "admin"
-  },
-  {
-    "username": "user.warehouse_name",
-    "password": "mainwh123",
-    "role": "user.warehouse"
+    "role": "admin",
+    "warehouse_id": 1234567890   // 👈 this line connects admin to Main Warehouse
   },
   {
     "id": 5,
