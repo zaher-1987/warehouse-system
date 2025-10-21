@@ -13,6 +13,22 @@
     h1 {
       margin-bottom: 20px;
     }
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .btn-home {
+      background: #6c757d;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 5px;
+      text-decoration: none;
+    }
+    .btn-home:hover {
+      background: #5a6268;
+    }
     table {
       width: 100%;
       border-collapse: collapse;
@@ -39,7 +55,12 @@
   </style>
 </head>
 <body>
-  <h1>📋 All Tickets Overview</h1>
+
+  <div class="top-bar">
+    <h1>📋 All Tickets Overview</h1>
+    <a href="/dashboard.html" class="btn-home">🏠 Home</a>
+  </div>
+
   <table id="ticketTable">
     <thead>
       <tr>
@@ -69,9 +90,9 @@
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td>${t.id}</td>
-          <td>${t.from}</td>
-          <td>${t.to}</td>
-          <td>${t.item_name}</td>
+          <td>${t.from || 'Unknown'}</td>
+          <td>${t.to || 'Unknown'}</td>
+          <td>${t.item_name || 'Unknown'}</td>
           <td>${t.quantity}</td>
           <td>${t.status || ''}</td>
           <td>${t.expected_ready || ''}</td>
