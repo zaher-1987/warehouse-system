@@ -9,6 +9,7 @@
       padding: 30px;
       max-width: 600px;
       margin: auto;
+      position: relative;
     }
     h1 {
       text-align: center;
@@ -34,9 +35,37 @@
     button:hover {
       background-color: #004a99;
     }
+    .home-btn {
+      position: absolute;
+      top: 20px;
+      right: 130px;
+      background: #0d6efd;
+      color: white;
+      padding: 8px 14px;
+      border: none;
+      border-radius: 5px;
+      text-decoration: none;
+    }
+    .home-btn:hover { background: #0b5ed7; }
+    .logout {
+      position: absolute;
+      top: 20px;
+      right: 30px;
+      background: #dc3545;
+      color: white;
+      padding: 8px 14px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .logout:hover { background: #c82333; }
   </style>
 </head>
 <body>
+  <a class="home-btn" href="/dashboard.html">🏠 Home</a>
+  <a class="logout" href="/logout">🚪 Logout</a>
+
   <h1>📋 Production Request Ticket</h1>
   <form id="ticketForm">
     <label for="warehouse">Warehouse:</label>
@@ -68,7 +97,7 @@
         data.forEach(wh => {
           const option = document.createElement('option');
           option.value = wh.id;
-          option.textContent = `${wh.name} (${wh.country})`;
+          option.textContent = `${wh.name}`;
           warehouseSelect.appendChild(option);
         });
       });
@@ -96,7 +125,7 @@
         request_date: document.getElementById("requestDate").value,
         collect_date: document.getElementById("collectDate").value,
         status: "pending",
-        created_by: "warehouse-manager" // static for now
+        created_by: "warehouse-manager"
       };
 
       fetch('/tickets', {
