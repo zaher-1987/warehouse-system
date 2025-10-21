@@ -247,9 +247,15 @@ app.post('/send-stock', async (req, res) => {
     const items = await readJson(ITEM_FILE);
     const tickets = await readJson(TICKET_FILE);
 
-    const item = items.find(
-      (i) => i.item_id === item_id && i.warehouse_name === from
-    );
+    const warehouses = await readJson(WAREHOUSE_FILE);
+const fromWarehouse = warehouses.find(w => w.name === from);
+if (!fromWarehouse) {
+  return res.json({ success: false, message: 'Main warehouse not found.' });
+}
+
+const item = items.find(
+  (i) => i.item_id === item_id && i.warehouse_id === fromWarehouse.id
+);
     if (!item)
       return res.json({ success: false, message: 'Item not found in main warehouse.' });
 
