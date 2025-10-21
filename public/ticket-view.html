@@ -2,182 +2,92 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>All Tickets - Warehouse System</title>
+  <title>🎫 Tickets - Warehouse System</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 30px;
-      background: #f8f9fa;
-    }
-    h2 {
-      margin-bottom: 20px;
-    }
-    .logout {
-      position: absolute;
-      top: 20px;
-      right: 30px;
-      background: #dc3545;
-      color: white;
-      padding: 8px 14px;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      text-decoration: none;
-    }
-    .logout:hover { background: #c82333; }
-    select {
-      padding: 6px 10px;
-      margin-right: 10px;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      background: white;
-    }
-    th, td {
-      border: 1px solid #ddd;
-      padding: 10px;
-      text-align: left;
-      vertical-align: top;
-    }
-    th {
-      background-color: #f2f2f2;
-    }
-    .delayed {
-      background: #fff0f0;
-      color: #a94442;
-    }
-    .status-tag {
-      padding: 3px 6px;
-      border-radius: 4px;
-      font-weight: bold;
-      font-size: 12px;
-      text-transform: uppercase;
-    }
-    .open { background: #d9edf7; color: #31708f; }
-    .in-process { background: #fcf8e3; color: #8a6d3b; }
-    .completed { background: #dff0d8; color: #3c763d; }
-    .delayed-tag { background: #f2dede; color: #a94442; }
+    body { font-family: Arial, sans-serif; padding: 30px; background: #f8f9fa; }
+    h2 { margin-bottom: 20px; }
+    table { width: 100%; border-collapse: collapse; background: #fff; }
+    th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+    th { background: #f2f2f2; }
+    input[type="date"], input[type="text"] { width: 95%; padding: 5px; }
+    button.save-btn { padding: 6px 10px; background: #0d6efd; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    button.save-btn:hover { background: #0b5ed7; }
+    .logout { position: absolute; top: 20px; right: 30px; background: #dc3545; color: white; padding: 8px 14px; border: none; border-radius: 5px; text-decoration: none; }
   </style>
 </head>
 <body>
   <a class="logout" href="/logout">🚪 Logout</a>
-  <h2>🎫 All Tickets</h2>
-
-  <button onclick="downloadExcel()" style="margin-bottom:20px;padding:10px 20px;font-size:14px;">
-    📥 Export to Excel
-  </button>
-
-  <br><br>
-
-  <label for="warehouseFilter">Filter by Warehouse:</label>
-  <select id="warehouseFilter">
-    <option value="">All</option>
-  </select>
-
-  <label for="statusFilter">Status:</label>
-  <select id="statusFilter">
-    <option value="">All</option>
-    <option value="open">Open</option>
-    <option value="in-process">In Process</option>
-    <option value="completed">Completed</option>
-    <option value="delayed">Delayed</option>
-  </select>
+  <h2>🎫 Tickets Overview</h2>
 
   <table id="ticketTable">
     <thead>
       <tr>
-        <th>ID</th>
-        <th>Warehouse</th>
-        <th>Item ID</th>
-        <th>Quantity</th>
-        <th>Request Date</th>
-        <th>Collect Date</th>
-        <th>Status</th>
-        <th>Expected Ready</th>
-        <th>Actual Ready</th>
-        <th>Delay Reason</th>
+        <th>ID</th><th>Warehouse</th><th>Item</th><th>Qty</th><th>Request</th><th>Collect</th><th>Status</th>
+        <th>Expected Ready</th><th>Actual Ready</th><th>Delay Reason</th><th>Action</th>
       </tr>
     </thead>
     <tbody></tbody>
   </table>
 
   <script>
-    let userRole = 'staff';
-    let assignedWarehouse = '';
-
-    function downloadExcel() {
-      window.location.href = '/export-tickets';
-    }
+    let userRole = 'staff', warehouseName = '';
 
     async function checkSession() {
       const res = await fetch('/session-status');
       const data = await res.json();
-      if (!data.loggedIn) {
-        window.location.href = '/login.html';
-        return;
-      }
+      if (!data.loggedIn) { window.location.href = '/login.html'; return; }
       userRole = data.user.role;
-      assignedWarehouse = data.user.warehouse_name || '';
+      warehouseName = data.user.warehouse_name || '';
+      loadTickets();
     }
 
     async function loadTickets() {
       const res = await fetch('/tickets');
       const tickets = await res.json();
-
       const tbody = document.querySelector('#ticketTable tbody');
-      const warehouseFilter = document.getElementById('warehouseFilter');
-      const selectedWarehouse = warehouseFilter.value;
-      const selectedStatus = document.getElementById('statusFilter').value;
-
       tbody.innerHTML = '';
-      let warehouses = new Set();
 
-      tickets.forEach(ticket => {
-        warehouses.add(ticket.warehouse_name);
+      tickets.forEach(t => {
+        const editable = (userRole === 'admin' || (warehouseName && warehouseName.toLowerCase().includes('main')));
+        const tr = document.createElement('tr');
 
-        const isVisible = userRole === 'admin' || ticket.warehouse_name === assignedWarehouse;
-        const matchesWarehouse = !selectedWarehouse || ticket.warehouse_name === selectedWarehouse;
-        const matchesStatus = !selectedStatus || ticket.status === selectedStatus;
-
-        if (isVisible && matchesWarehouse && matchesStatus) {
-          const tr = document.createElement('tr');
-          if (ticket.status === 'delayed') {
-            tr.classList.add('delayed');
-          }
-
-          tr.innerHTML = `
-            <td>${ticket.id}</td>
-            <td>${ticket.warehouse_name}</td>
-            <td>${ticket.item_id}</td>
-            <td>${ticket.quantity}</td>
-            <td>${ticket.request_date}</td>
-            <td>${ticket.collect_date}</td>
-            <td><span class="status-tag ${ticket.status.replace(' ', '-')}">${ticket.status}</span></td>
-            <td>${ticket.expected_ready || '-'}</td>
-            <td>${ticket.actual_ready || '-'}</td>
-            <td>${ticket.delay_reason || '-'}</td>
-          `;
-
-          tbody.appendChild(tr);
-        }
+        tr.innerHTML = `
+          <td>${t.id}</td>
+          <td>${t.warehouse_name}</td>
+          <td>${t.item_id}</td>
+          <td>${t.quantity}</td>
+          <td>${t.request_date}</td>
+          <td>${t.collect_date}</td>
+          <td>${t.status}</td>
+          <td>${editable ? `<input type="date" id="expected_${t.id}" value="${t.expected_ready || ''}">` : (t.expected_ready || '-')}</td>
+          <td>${editable ? `<input type="date" id="actual_${t.id}" value="${t.actual_ready || ''}">` : (t.actual_ready || '-')}</td>
+          <td>${editable ? `<input type="text" id="delay_${t.id}" value="${t.delay_reason || ''}">` : (t.delay_reason || '-')}</td>
+          <td>${editable ? `<button class="save-btn" onclick="saveTicket(${t.id})">💾 Save</button>` : '-'}</td>
+        `;
+        tbody.appendChild(tr);
       });
+    }
 
-      // Fill warehouse dropdown (admin only)
-      if (userRole === 'admin') {
-        warehouseFilter.innerHTML = `<option value="">All</option>`;
-        [...warehouses].forEach(name => {
-          warehouseFilter.innerHTML += `<option value="${name}">${name}</option>`;
-        });
+    async function saveTicket(id) {
+      const expected_ready = document.getElementById(`expected_${id}`).value;
+      const actual_ready = document.getElementById(`actual_${id}`).value;
+      const delay_reason = document.getElementById(`delay_${id}`).value;
+
+      const res = await fetch('/update-ticket-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, expected_ready, actual_ready, delay_reason })
+      });
+      const result = await res.json();
+      if (result.success) {
+        alert('✅ Ticket updated successfully');
+        loadTickets();
       } else {
-        warehouseFilter.style.display = 'none';
+        alert('❌ ' + result.message);
       }
     }
 
-    document.getElementById('warehouseFilter').addEventListener('change', loadTickets);
-    document.getElementById('statusFilter').addEventListener('change', loadTickets);
-
-    checkSession().then(loadTickets);
+    checkSession();
   </script>
 </body>
 </html>
