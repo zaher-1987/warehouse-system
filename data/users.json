@@ -12,7 +12,7 @@
   {
     "id": 5,
     "username": "production",
-    "password": "12345",
+    "password": "123456",
     "role": "production",
     "warehouse_id": 1
   },
