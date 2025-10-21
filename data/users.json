@@ -5,6 +5,11 @@
     "role": "admin"
   },
   {
+    "username": "user.warehouse_name",
+    "password": "mainwh123",
+    "role": "user.warehouse"
+  },
+  {
     "id": 5,
     "username": "production",
     "password": "12345",
