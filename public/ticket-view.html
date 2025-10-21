@@ -12,6 +12,19 @@
     h2 {
       margin-bottom: 20px;
     }
+    .logout {
+      position: absolute;
+      top: 20px;
+      right: 30px;
+      background: #dc3545;
+      color: white;
+      padding: 8px 14px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .logout:hover { background: #c82333; }
     select {
       padding: 6px 10px;
       margin-right: 10px;
@@ -48,6 +61,7 @@
   </style>
 </head>
 <body>
+  <a class="logout" href="/logout">🚪 Logout</a>
   <h2>🎫 All Tickets</h2>
 
   <button onclick="downloadExcel()" style="margin-bottom:20px;padding:10px 20px;font-size:14px;">
@@ -89,8 +103,22 @@
   </table>
 
   <script>
+    let userRole = 'staff';
+    let assignedWarehouse = '';
+
     function downloadExcel() {
       window.location.href = '/export-tickets';
+    }
+
+    async function checkSession() {
+      const res = await fetch('/session-status');
+      const data = await res.json();
+      if (!data.loggedIn) {
+        window.location.href = '/login.html';
+        return;
+      }
+      userRole = data.user.role;
+      assignedWarehouse = data.user.warehouse_name || '';
     }
 
     async function loadTickets() {
@@ -103,16 +131,16 @@
       const selectedStatus = document.getElementById('statusFilter').value;
 
       tbody.innerHTML = '';
-
       let warehouses = new Set();
 
       tickets.forEach(ticket => {
         warehouses.add(ticket.warehouse_name);
 
+        const isVisible = userRole === 'admin' || ticket.warehouse_name === assignedWarehouse;
         const matchesWarehouse = !selectedWarehouse || ticket.warehouse_name === selectedWarehouse;
         const matchesStatus = !selectedStatus || ticket.status === selectedStatus;
 
-        if (matchesWarehouse && matchesStatus) {
+        if (isVisible && matchesWarehouse && matchesStatus) {
           const tr = document.createElement('tr');
           if (ticket.status === 'delayed') {
             tr.classList.add('delayed');
@@ -135,17 +163,21 @@
         }
       });
 
-      // Fill warehouse dropdown
-      warehouseFilter.innerHTML = `<option value="">All</option>`;
-      [...warehouses].forEach(name => {
-        warehouseFilter.innerHTML += `<option value="${name}">${name}</option>`;
-      });
+      // Fill warehouse dropdown (admin only)
+      if (userRole === 'admin') {
+        warehouseFilter.innerHTML = `<option value="">All</option>`;
+        [...warehouses].forEach(name => {
+          warehouseFilter.innerHTML += `<option value="${name}">${name}</option>`;
+        });
+      } else {
+        warehouseFilter.style.display = 'none';
+      }
     }
 
     document.getElementById('warehouseFilter').addEventListener('change', loadTickets);
     document.getElementById('statusFilter').addEventListener('change', loadTickets);
 
-    loadTickets();
+    checkSession().then(loadTickets);
   </script>
 </body>
 </html>
