@@ -132,8 +132,23 @@ app.post('/update-item', requireAdmin, (req, res) => {
   }
 });
 
-// ✅ Ticket Routes
-app.get('/tickets', (req, res) => res.json(tickets));
+// ✅ Ticket Routes (Fixed: include warehouse_name)
+app.get('/tickets', (req, res) => {
+  const enrichedTickets = tickets.map(ticket => {
+    // Handle two possible formats: old "warehouse" string OR warehouse_id
+    const warehouse =
+      ticket.warehouse_id
+        ? warehouses.find(w => w.id === ticket.warehouse_id)
+        : warehouses.find(w => w.name === ticket.warehouse);
+
+    return {
+      ...ticket,
+      warehouse_name: warehouse ? warehouse.name : 'Unknown'
+    };
+  });
+
+  res.json(enrichedTickets);
+});
 
 app.post('/tickets', (req, res) => {
   const newId = tickets.length ? tickets.length + 1 : 1;
