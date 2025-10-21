@@ -257,4 +257,7 @@ function checkAutoTicketLogic() {
 app.get('/', (req, res) => res.redirect('/login.html'));
 
 checkAutoTicketLogic();
+app.get('/production-view.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'production-view.html'));
+});
 app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
