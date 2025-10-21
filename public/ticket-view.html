@@ -12,6 +12,8 @@
     input[type="date"], input[type="text"] { width: 95%; padding: 5px; }
     button.save-btn { padding: 6px 10px; background: #0d6efd; color: white; border: none; border-radius: 4px; cursor: pointer; }
     button.save-btn:hover { background: #0b5ed7; }
+    button.update-btn { padding: 6px 10px; background: #198754; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    button.update-btn:hover { background: #157347; }
     .logout { position: absolute; top: 20px; right: 30px; background: #dc3545; color: white; padding: 8px 14px; border: none; border-radius: 5px; text-decoration: none; }
     .home-btn { position: absolute; top: 20px; right: 130px; background: #0d6efd; color: white; padding: 8px 14px; border-radius: 5px; text-decoration: none; }
     .home-btn:hover { background: #0b5ed7; }
@@ -66,7 +68,12 @@
           <td>${editable ? `<input type="date" id="expected_${t.id}" value="${t.expected_ready || ''}">` : (t.expected_ready || '-')}</td>
           <td>${editable ? `<input type="date" id="actual_${t.id}" value="${t.actual_ready || ''}">` : (t.actual_ready || '-')}</td>
           <td>${editable ? `<input type="text" id="delay_${t.id}" value="${t.delay_reason || ''}">` : (t.delay_reason || '-')}</td>
-          <td>${editable ? `<button class="save-btn" onclick="saveTicket(${t.id})">💾 Save</button>` : '-'}</td>
+          <td>
+            ${editable
+              ? `<button class="save-btn" onclick="saveTicket(${t.id})">💾 Save</button>
+                 <button class="update-btn" onclick="goToUpdatePage(${t.id})">✏️ Update</button>`
+              : '-'}
+          </td>
         `;
         tbody.appendChild(tr);
       });
@@ -89,6 +96,10 @@
       } else {
         alert('❌ ' + result.message);
       }
+    }
+
+    function goToUpdatePage(id) {
+      window.location.href = `ticket-update.html?id=${id}`;
     }
 
     checkSession();
