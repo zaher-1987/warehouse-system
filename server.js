@@ -89,7 +89,29 @@ app.post('/warehouses', (req, res) => {
   writeJson(WAREHOUSE_FILE, warehouses);
   res.status(201).json(newWarehouse);
 });
+// ✅ Add this route BELOW your existing /warehouses GET and POST routes in server.js
 
+app.post('/add-warehouse', requireAdmin, (req, res) => {
+  const { name } = req.body;
+
+  if (!name || typeof name !== 'string' || !name.trim()) {
+    return res.status(400).json({ success: false, message: 'Warehouse name is required.' });
+  }
+
+  const trimmed = name.trim();
+  const existing = warehouses.find(w => w.name.toLowerCase() === trimmed.toLowerCase());
+  if (existing) {
+    return res.status(400).json({ success: false, message: 'Warehouse already exists.' });
+  }
+
+  const newId = warehouses.length ? Math.max(...warehouses.map(w => w.id)) + 1 : 1;
+  const newWarehouse = { id: newId, name: trimmed };
+  warehouses.push(newWarehouse);
+  writeJson(WAREHOUSE_FILE, warehouses);
+
+  console.log('✅ Added new warehouse:', newWarehouse);
+  res.json({ success: true });
+});
 // Items
 app.get('/items', (req, res) => {
   const user = req.session.user;
