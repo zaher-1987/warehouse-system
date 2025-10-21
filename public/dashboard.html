@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -90,10 +91,23 @@
       text-decoration: none;
     }
     .logout:hover { background: #c82333; }
+    .ticket-button {
+      position: absolute;
+      top: 20px;
+      right: 130px;
+      background: #0d6efd;
+      color: white;
+      padding: 8px 14px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      text-decoration: none;
+    }
   </style>
 </head>
 <body>
   <a class="logout" href="/logout">🚪 Logout</a>
+  <a class="ticket-button" id="viewTicketsBtn" href="/ticket-view.html" style="display:none;">🎫 View Tickets</a>
   <h2>📦 Warehouse Inventory Dashboard</h2>
   <p id="userWarehouseInfo">Checking session...</p>
 
@@ -105,7 +119,6 @@
   <button onclick="exportInventory()">📁 Export to Excel</button>
   <button onclick="openChartModal()">📊 View Charts</button>
   <button id="editToggle" style="display:none;" onclick="toggleEditMode()">✏️ Enable Edit Mode</button>
-  <button id="ticketButton" style="display:none;" onclick="openTicketModal()">🎫 View Tickets</button>
 
   <table id="inventoryTable">
     <thead>
@@ -124,13 +137,6 @@
     <div class="modal-content">
       <span class="close" onclick="closeChartModal()">×</span>
       <iframe src="warehouse-charts.html"></iframe>
-    </div>
-  </div>
-
-  <div id="ticketModal" class="modal">
-    <div class="modal-content">
-      <span class="close" onclick="closeTicketModal()">×</span>
-      <iframe src="ticket-view.html"></iframe>
     </div>
   </div>
 
@@ -153,16 +159,16 @@
       document.getElementById('userWarehouseInfo').textContent =
         userRole === 'admin'
           ? 'Logged in as Admin (all warehouses)'
-          : `Logged in as ${userRole} - Warehouse: ${assignedWarehouse}`;
+          : `Logged in as ${userRole.charAt(0).toUpperCase() + userRole.slice(1)} - Warehouse: ${assignedWarehouse}`;
 
       if (userRole === 'admin') {
         document.getElementById('editToggle').style.display = 'inline-block';
-        document.getElementById('ticketButton').style.display = 'inline-block';
-      } else if (userRole === 'main' || userRole === 'production') {
-        document.getElementById('ticketButton').style.display = 'inline-block';
+      }
+      if (userRole === 'staff') {
         document.getElementById('warehouseFilter').style.display = 'none';
-      } else {
-        document.getElementById('warehouseFilter').style.display = 'none';
+      }
+      if (userRole === 'admin' || userRole === 'production') {
+        document.getElementById('viewTicketsBtn').style.display = 'inline-block';
       }
 
       loadInventory();
@@ -223,7 +229,6 @@
         }
       });
 
-      // Fill dropdown only for admin
       if (userRole === 'admin') {
         const warehouseSelect = document.getElementById('warehouseFilter');
         warehouseSelect.innerHTML = '<option value="">All</option>';
@@ -275,14 +280,6 @@
 
     function closeChartModal() {
       document.getElementById('chartModal').style.display = 'none';
-    }
-
-    function openTicketModal() {
-      document.getElementById('ticketModal').style.display = 'block';
-    }
-
-    function closeTicketModal() {
-      document.getElementById('ticketModal').style.display = 'none';
     }
 
     document.getElementById('warehouseFilter').addEventListener('change', loadInventory);
