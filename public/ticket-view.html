@@ -2,107 +2,57 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>🎫 Tickets - Warehouse System</title>
-  <style>
-    body { font-family: Arial, sans-serif; padding: 30px; background: #f8f9fa; position: relative; }
-    h2 { margin-bottom: 20px; }
-    table { width: 100%; border-collapse: collapse; background: #fff; }
-    th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
-    th { background: #f2f2f2; }
-    input[type="date"], input[type="text"] { width: 95%; padding: 5px; }
-    button.save-btn { padding: 6px 10px; background: #0d6efd; color: white; border: none; border-radius: 4px; cursor: pointer; }
-    button.save-btn:hover { background: #0b5ed7; }
-    button.update-btn { padding: 6px 10px; background: #198754; color: white; border: none; border-radius: 4px; cursor: pointer; }
-    button.update-btn:hover { background: #157347; }
-    .logout { position: absolute; top: 20px; right: 30px; background: #dc3545; color: white; padding: 8px 14px; border: none; border-radius: 5px; text-decoration: none; }
-    .home-btn { position: absolute; top: 20px; right: 130px; background: #0d6efd; color: white; padding: 8px 14px; border-radius: 5px; text-decoration: none; }
-    .home-btn:hover { background: #0b5ed7; }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ticket View</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <a class="home-btn" href="/dashboard.html">🏠 Home</a>
-  <a class="logout" href="/logout">🚪 Logout</a>
-
-  <h2>🎫 Tickets Overview</h2>
-
+  <h1>📋 All Tickets Overview</h1>
   <table id="ticketTable">
     <thead>
       <tr>
-        <th>ID</th><th>Warehouse</th><th>Item</th><th>Qty</th><th>Request</th><th>Collect</th><th>Status</th>
-        <th>Expected Ready</th><th>Actual Ready</th><th>Delay Reason</th><th>Action</th>
+        <th>ID</th>
+        <th>From</th>
+        <th>To</th>
+        <th>Item</th>
+        <th>Qty</th>
+        <th>Status</th>
+        <th>Expected Ready</th>
+        <th>Actual Ready</th>
+        <th>Delay Reason</th>
+        <th>Updated</th>
       </tr>
     </thead>
     <tbody></tbody>
   </table>
 
   <script>
-    let userRole = 'staff', warehouseName = '';
-
-    async function checkSession() {
-      const res = await fetch('/session-status');
-      const data = await res.json();
-      if (!data.loggedIn) { window.location.href = '/login.html'; return; }
-      userRole = data.user.role;
-      warehouseName = data.user.warehouse_name || '';
-      loadTickets();
-    }
-
     async function loadTickets() {
       const res = await fetch('/tickets');
       const tickets = await res.json();
       const tbody = document.querySelector('#ticketTable tbody');
       tbody.innerHTML = '';
-
       tickets.forEach(t => {
-        const editable = (userRole === 'admin' || (warehouseName && warehouseName.toLowerCase().includes('main')));
         const tr = document.createElement('tr');
-
         tr.innerHTML = `
           <td>${t.id}</td>
-          <td>${t.warehouse_name}</td>
-          <td>${t.item_id}</td>
+          <td>${t.from_warehouse}</td>
+          <td>${t.to_warehouse}</td>
+          <td>${t.name}</td>
           <td>${t.quantity}</td>
-          <td>${t.request_date}</td>
-          <td>${t.collect_date}</td>
-          <td>${t.status}</td>
-          <td>${editable ? `<input type="date" id="expected_${t.id}" value="${t.expected_ready || ''}">` : (t.expected_ready || '-')}</td>
-          <td>${editable ? `<input type="date" id="actual_${t.id}" value="${t.actual_ready || ''}">` : (t.actual_ready || '-')}</td>
-          <td>${editable ? `<input type="text" id="delay_${t.id}" value="${t.delay_reason || ''}">` : (t.delay_reason || '-')}</td>
+          <td>${t.status || ''}</td>
+          <td>${t.expected_ready || ''}</td>
+          <td>${t.actual_ready || ''}</td>
+          <td>${t.delay_reason || ''}</td>
           <td>
-            ${editable
-              ? `<button class="save-btn" onclick="saveTicket(${t.id})">💾 Save</button>
-                 <button class="update-btn" onclick="goToUpdatePage(${t.id})">✏️ Update</button>`
-              : '-'}
+            <a href="/ticket-update.html?id=${t.id}" class="btn">✏️ Update</a>
           </td>
         `;
         tbody.appendChild(tr);
       });
     }
 
-    async function saveTicket(id) {
-      const expected_ready = document.getElementById(`expected_${id}`).value;
-      const actual_ready = document.getElementById(`actual_${id}`).value;
-      const delay_reason = document.getElementById(`delay_${id}`).value;
-
-      const res = await fetch('/update-ticket-status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, expected_ready, actual_ready, delay_reason })
-      });
-      const result = await res.json();
-      if (result.success) {
-        alert('✅ Ticket updated successfully');
-        loadTickets();
-      } else {
-        alert('❌ ' + result.message);
-      }
-    }
-
-    function goToUpdatePage(id) {
-      window.location.href = `ticket-update.html?id=${id}`;
-    }
-
-    checkSession();
+    loadTickets();
   </script>
 </body>
 </html>
