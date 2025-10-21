@@ -10,13 +10,8 @@
       background: #f4f6f8;
       position: relative;
     }
-    h2 {
-      margin-bottom: 10px;
-    }
-    #userWarehouseInfo {
-      margin-bottom: 20px;
-      font-style: italic;
-    }
+    h2 { margin-bottom: 10px; }
+    #userWarehouseInfo { margin-bottom: 20px; font-style: italic; }
     select, input[type="text"], input[type="number"], input[type="date"] {
       padding: 6px 10px;
       margin-right: 10px;
@@ -40,67 +35,35 @@
       padding: 10px;
       text-align: left;
     }
-    th {
-      background: #f2f2f2;
-      cursor: pointer;
-    }
+    th { background: #f2f2f2; cursor: pointer; }
     .green { background-color: #d4edda; color: #155724; }
     .orange { background-color: #fff3cd; color: #856404; }
     .red { background-color: #f8d7da; color: #721c24; }
     .unknown { background-color: #e2e3e5; color: #6c757d; }
+    .logout {
+      position: absolute; top: 20px; right: 30px;
+      background: #dc3545; color: white;
+      padding: 8px 14px; border: none; border-radius: 5px;
+      cursor: pointer; text-decoration: none;
+    }
+    .ticket-button {
+      position: absolute; top: 20px; right: 130px;
+      background: #0d6efd; color: white;
+      padding: 8px 14px; border: none; border-radius: 5px;
+      cursor: pointer; text-decoration: none;
+    }
     .modal {
-      display: none;
-      position: fixed;
-      z-index: 999;
-      left: 0; top: 0;
-      width: 100%; height: 100%;
+      display: none; position: fixed; z-index: 999;
+      left: 0; top: 0; width: 100%; height: 100%;
       background-color: rgba(0,0,0,0.5);
     }
     .modal-content {
-      background: white;
-      margin: 10% auto;
-      padding: 20px;
-      border-radius: 8px;
-      width: 90%;
-      max-width: 900px;
-      height: 600px;
+      background: white; margin: 10% auto; padding: 20px;
+      border-radius: 8px; width: 90%; max-width: 900px; height: 600px;
       position: relative;
     }
-    .close {
-      position: absolute;
-      top: 10px; right: 15px;
-      font-size: 24px;
-      cursor: pointer;
-    }
-    iframe {
-      width: 100%;
-      height: 100%;
-      border: none;
-    }
-    .logout {
-      position: absolute;
-      top: 20px;
-      right: 30px;
-      background: #dc3545;
-      color: white;
-      padding: 8px 14px;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      text-decoration: none;
-    }
-    .ticket-button {
-      position: absolute;
-      top: 20px;
-      right: 130px;
-      background: #0d6efd;
-      color: white;
-      padding: 8px 14px;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      text-decoration: none;
-    }
+    .close { position: absolute; top: 10px; right: 15px; font-size: 24px; cursor: pointer; }
+    iframe { width: 100%; height: 100%; border: none; }
   </style>
 </head>
 <body>
@@ -110,9 +73,7 @@
   <p id="userWarehouseInfo">Checking session...</p>
 
   <label for="warehouseFilter">Filter by Warehouse:</label>
-  <select id="warehouseFilter">
-    <option value="LiverRX (Dogs)">LiverRX (Dogs)</option>
-  </select>
+  <select id="warehouseFilter"><option value="">All</option></select>
 
   <button onclick="exportInventory()">📁 Export to Excel</button>
   <button onclick="openChartModal()">📊 View Charts</button>
@@ -144,7 +105,13 @@
     <select id="targetWarehouseDropdown"></select><br><br>
 
     <label>Product:</label>
-    <select id="productDropdown"></select><br><br>
+    <select id="productDropdown">
+      <option value="">Select product</option>
+      <option value="H001">HeartRX</option>
+      <option value="K001">KidneyRX</option>
+      <option value="L001">LiverRX (Cats)</option>
+      <option value="L002">LiverRX (Dogs)</option>
+    </select><br><br>
 
     <label>Quantity:</label>
     <input type="number" id="stockQuantity" min="1"><br><br>
@@ -173,10 +140,7 @@
     async function checkSession() {
       const res = await fetch('/session-status');
       const data = await res.json();
-      if (!data.loggedIn) {
-        window.location.href = '/login.html';
-        return;
-      }
+      if (!data.loggedIn) return (window.location.href = '/login.html');
 
       userRole = data.user.role;
       assignedWarehouse = data.user.warehouse_name || '';
@@ -184,38 +148,20 @@
       document.getElementById('userWarehouseInfo').textContent =
         userRole === 'admin'
           ? 'Logged in as Admin (all warehouses)'
-          : `Logged in as ${userRole.charAt(0).toUpperCase() + userRole.slice(1)} - Warehouse: ${assignedWarehouse}`;
+          : `Logged in as ${userRole} - Warehouse: ${assignedWarehouse}`;
 
-      const viewBtn = document.getElementById('viewTicketsBtn');
       if (userRole === 'production') {
-        viewBtn.href = '/production-view.html';
-        viewBtn.style.display = 'inline-block';
+        document.getElementById('viewTicketsBtn').href = '/production-view.html';
+        document.getElementById('viewTicketsBtn').style.display = 'inline-block';
       } else if (userRole === 'admin') {
-        viewBtn.href = '/ticket-view.html';
-        viewBtn.style.display = 'inline-block';
-      }
-
-      if (userRole === 'admin') {
+        document.getElementById('viewTicketsBtn').href = '/ticket-view.html';
+        document.getElementById('viewTicketsBtn').style.display = 'inline-block';
         document.getElementById('editToggle').style.display = 'inline-block';
         document.getElementById('createWarehouseBtn').style.display = 'inline-block';
-      }
-
-      if (userRole === 'admin' && assignedWarehouse === 'Main Warehouse') {
         document.getElementById('sendStockSection').style.display = 'block';
         populateDropdowns();
       }
 
-      if (userRole === 'staff') {
-        document.getElementById('warehouseFilter').style.display = 'none';
-      }
-
-      loadInventory();
-    }
-
-    function toggleEditMode() {
-      editMode = !editMode;
-      document.getElementById('editToggle').textContent =
-        editMode ? '🚫 Disable Edit Mode' : '✏️ Enable Edit Mode';
       loadInventory();
     }
 
@@ -223,177 +169,76 @@
       const res = await fetch('/inventory-status');
       const data = await res.json();
       const tbody = document.querySelector('#inventoryTable tbody');
-      const filter = document.getElementById('warehouseFilter').value;
-
-      let warehouses = new Set();
       tbody.innerHTML = '';
 
       data.forEach(item => {
-        warehouses.add(item.warehouse_name);
-
-        const isVisible =
-          userRole === 'admin'
-            ? !filter || item.warehouse_name === filter
-            : item.warehouse_name === assignedWarehouse;
-
-        if (isVisible) {
-          const tr = document.createElement('tr');
-          const cssClass = ['green', 'orange', 'red'].includes(item.status) ? item.status : 'unknown';
-          tr.classList.add(cssClass);
-
-          let statusIcon = '';
-          switch (item.status) {
-            case 'green': statusIcon = '✅'; break;
-            case 'orange': statusIcon = '⚠️'; break;
-            case 'red': statusIcon = '❌'; break;
-            default: statusIcon = '❓';
-          }
-
-          tr.innerHTML = `
-            <td>${item.warehouse_name}</td>
-            <td>${item.item_id}</td>
-            <td contenteditable="${editMode}" data-field="name">${item.name}</td>
-            <td contenteditable="${editMode}" data-field="quantity">${item.quantity}</td>
-            <td>${statusIcon}</td>
-            ${editMode ? '<td><button onclick="saveItem(this)">📅 Save</button></td>' : ''}
-          `;
-          tbody.appendChild(tr);
-        }
+        const tr = document.createElement('tr');
+        tr.classList.add(item.status || 'unknown');
+        const statusIcon =
+          item.status === 'green' ? '✅' :
+          item.status === 'orange' ? '⚠️' :
+          item.status === 'red' ? '❌' : '❓';
+        tr.innerHTML = `
+          <td>${item.warehouse_name}</td>
+          <td>${item.item_id}</td>
+          <td>${item.name}</td>
+          <td>${item.quantity}</td>
+          <td>${statusIcon}</td>
+        `;
+        tbody.appendChild(tr);
       });
-
-      if (userRole === 'admin') {
-        const warehouseSelect = document.getElementById('warehouseFilter');
-        warehouseSelect.innerHTML = '<option value="">All</option>';
-        [...warehouses].forEach(w => {
-          warehouseSelect.innerHTML += `<option value="${w}">${w}</option>`;
-        });
-      }
-    }
-
-    async function saveItem(btn) {
-      const row = btn.closest('tr');
-      const warehouse = row.children[0].textContent.trim();
-      const item_id = row.children[1].textContent.trim();
-      const name = row.querySelector('[data-field="name"]').textContent.trim();
-      const quantity = parseInt(row.querySelector('[data-field="quantity"]').textContent.trim());
-
-      const res = await fetch('/update-item', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ warehouse, item_id, name, quantity })
-      });
-
-      const result = await res.json();
-      if (result.success) {
-        btn.disabled = true;
-        btn.textContent = '✔️ Saved';
-        setTimeout(() => {
-          btn.disabled = false;
-          btn.textContent = '📅 Save';
-          loadInventory();
-        }, 1000);
-      } else {
-        alert('❌ Update failed: ' + result.message);
-      }
-    }
-
-    function exportInventory() {
-      window.location.href = '/export-inventory';
-    }
-
-    function openChartModal() {
-      document.getElementById('chartModal').style.display = 'block';
-    }
-
-    function closeChartModal() {
-      document.getElementById('chartModal').style.display = 'none';
-    }
-
-    function showCreateWarehouse() {
-      document.getElementById('createWarehouseContainer').style.display = 'block';
-    }
-
-    async function saveWarehouse() {
-      const name = document.getElementById('newWarehouseInput').value.trim();
-      if (!name) return alert('Please enter a warehouse name.');
-      const res = await fetch('/add-warehouse', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name })
-      });
-      const data = await res.json();
-      if (data.success) {
-        alert('✅ Warehouse added successfully.');
-        document.getElementById('createWarehouseContainer').style.display = 'none';
-        document.getElementById('newWarehouseInput').value = '';
-        loadInventory();
-      } else {
-        alert('❌ Failed to add warehouse.');
-      }
     }
 
     async function sendStock() {
       const targetWarehouse = document.getElementById('targetWarehouseDropdown').value;
-      const productID = document.getElementById('productDropdown').value;
+      const item_id = document.getElementById('productDropdown').value;
       const quantity = parseInt(document.getElementById('stockQuantity').value.trim());
-      const requestDate = document.getElementById('requestDate').value;
-      const collectDate = document.getElementById('collectDate').value;
+      const request_date = document.getElementById('requestDate').value;
+      const collect_date = document.getElementById('collectDate').value;
 
-      if (!targetWarehouse || !productID || !quantity || !requestDate || !collectDate) {
-        alert('❌ Please fill all fields before sending stock.');
-        return;
-      }
+      if (!targetWarehouse || !item_id || !quantity || !request_date || !collect_date)
+        return alert('❌ Please fill all fields before sending stock.');
 
-      const ticket = {
-        from_warehouse: assignedWarehouse,
-        to_warehouse: targetWarehouse,
-        item_id: productID,
+      const payload = {
+        from: 'Main Warehouse',
+        to: targetWarehouse,
+        item_id,
         quantity,
-        request_date: requestDate,
-        collect_date: collectDate,
-        status: 'open'
+        request_date,
+        collect_date
       };
 
-      const res = await fetch('/send-stock', {     // ✅ CORRECT
+      const res = await fetch('/send-stock', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(ticket)
+        body: JSON.stringify(payload)
       });
-
       const result = await res.json();
+
       if (result.success) {
         alert('✅ Stock sent successfully!');
-        document.getElementById('stockQuantity').value = '';
-        document.getElementById('requestDate').value = '';
-        document.getElementById('collectDate').value = '';
+        loadInventory();
       } else {
         alert('❌ Failed to send stock: ' + result.message);
       }
     }
 
     async function populateDropdowns() {
-      const productDropdown = document.getElementById('productDropdown');
-      productDropdown.innerHTML = `
-        <option value="">Select product</option>
-        <option value="HeartRX">HeartRX</option>
-        <option value="KidneyRX">KidneyRX</option>
-        <option value="LiverRX_Cats">LiverRX for Cats</option>
-        <option value="LiverRX_Dogs">LiverRX for Dogs</option>
-      `;
-
       const warehouseDropdown = document.getElementById('targetWarehouseDropdown');
       const res = await fetch('/warehouses');
       const warehouses = await res.json();
       warehouseDropdown.innerHTML = '<option value="">Select warehouse</option>';
       warehouses.forEach(w => {
-        if (w.name !== assignedWarehouse) {
+        if (w.name !== 'Main Warehouse') {
           warehouseDropdown.innerHTML += `<option value="${w.name}">${w.name}</option>`;
         }
       });
     }
 
-    document.getElementById('warehouseFilter').addEventListener('change', loadInventory);
-    setInterval(loadInventory, 30000);
+    function exportInventory() { window.location.href = '/export-inventory'; }
+    function openChartModal() { document.getElementById('chartModal').style.display = 'block'; }
+    function closeChartModal() { document.getElementById('chartModal').style.display = 'none'; }
+
     checkSession();
   </script>
 </body>
