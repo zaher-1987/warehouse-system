@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Update Ticket</title>
   <meta charset="UTF-8" />
+  <title>🔧 Update Ticket</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -10,21 +10,28 @@
       max-width: 600px;
       margin: auto;
       position: relative;
+      background: #f8f9fa;
     }
-    label { display: block; margin-top: 15px; }
+    h1 { margin-bottom: 20px; }
+    label { display: block; margin-top: 15px; font-weight: bold; }
     input, select, textarea {
       width: 100%;
       padding: 8px;
       margin-top: 5px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
     }
     button {
       margin-top: 20px;
       padding: 10px;
       width: 100%;
-      background-color: #0a74da;
+      background-color: #198754;
       color: white;
       border: none;
+      border-radius: 4px;
+      cursor: pointer;
     }
+    button:hover { background-color: #157347; }
     .home-btn {
       position: absolute;
       top: 20px;
@@ -54,64 +61,79 @@
   <a class="logout" href="/logout">🚪 Logout</a>
 
   <h1>🔧 Update Ticket</h1>
+
   <form id="updateForm">
-    <label>Available Quantity:</label>
-    <input type="number" id="available" required>
+    <p><strong>Ticket ID:</strong> <span id="ticketIdText"></span></p>
+    <p><strong>Item:</strong> <span id="itemName"></span></p>
+    <p><strong>Quantity:</strong> <span id="quantity"></span></p>
+    <p><strong>From:</strong> <span id="fromWarehouse"></span></p>
+    <p><strong>To:</strong> <span id="toWarehouse"></span></p>
 
-    <label>Balance Needed:</label>
-    <input type="number" id="balance" required>
+    <label>Status:</label>
+    <select id="status">
+      <option value="Pending">Pending</option>
+      <option value="Delayed">Delayed</option>
+      <option value="Closed">Closed</option>
+    </select>
 
-    <label>Time Needed (e.g., 3 days):</label>
-    <input type="text" id="time" required>
+    <label>Expected Ready:</label>
+    <input type="date" id="expected_ready" />
 
-    <label>Expected Ready Date:</label>
-    <input type="date" id="expected" required>
-
-    <label>Actual Ready Date:</label>
-    <input type="date" id="actual" required>
+    <label>Actual Ready:</label>
+    <input type="date" id="actual_ready" />
 
     <label>Delay Reason / Notes:</label>
     <textarea id="delay_reason" rows="4"></textarea>
 
-    <label>Ticket Status:</label>
-    <select id="status" required>
-      <option value="open">Open</option>
-      <option value="delayed">Delayed</option>
-      <option value="closed">Closed</option>
-    </select>
-
-    <button type="submit">Submit Update</button>
+    <button type="submit">💾 Save Changes</button>
   </form>
 
   <script>
     const urlParams = new URLSearchParams(window.location.search);
     const ticketId = urlParams.get("id");
 
-    document.getElementById("updateForm").addEventListener("submit", function (e) {
+    async function loadTicket() {
+      const res = await fetch("/tickets");
+      const tickets = await res.json();
+      const ticket = tickets.find(t => Number(t.id) === Number(ticketId));
+      if (!ticket) {
+        alert("❌ Ticket not found");
+        return;
+      }
+
+      document.getElementById("ticketIdText").textContent = ticket.id;
+      document.getElementById("itemName").textContent = ticket.name || ticket.item_id;
+      document.getElementById("quantity").textContent = ticket.quantity;
+      document.getElementById("fromWarehouse").textContent = ticket.from_warehouse;
+      document.getElementById("toWarehouse").textContent = ticket.to_warehouse;
+      document.getElementById("status").value = ticket.status || "Pending";
+      document.getElementById("expected_ready").value = ticket.expected_ready || "";
+      document.getElementById("actual_ready").value = ticket.actual_ready || "";
+      document.getElementById("delay_reason").value = ticket.delay_reason || "";
+    }
+
+    document.getElementById("updateForm").addEventListener("submit", async (e) => {
       e.preventDefault();
+      const status = document.getElementById("status").value;
+      const expected_ready = document.getElementById("expected_ready").value;
+      const actual_ready = document.getElementById("actual_ready").value;
+      const delay_reason = document.getElementById("delay_reason").value;
 
-      const updatedTicket = {
-        available_quantity: Number(document.getElementById("available").value),
-        balance_needed: Number(document.getElementById("balance").value),
-        time_needed: document.getElementById("time").value,
-        expected_ready: document.getElementById("expected").value,
-        actual_ready: document.getElementById("actual").value,
-        delay_reason: document.getElementById("delay_reason").value,
-        status: document.getElementById("status").value
-      };
-
-      fetch(`/tickets/${ticketId}`, {
-        method: "PUT",
+      const res = await fetch("/update-ticket-status", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updatedTicket)
-      })
-      .then(res => res.json())
-      .then(() => {
-        alert("✅ Ticket updated!");
-        window.location.href = "/tickets.html";
-      })
-      .catch(() => alert("❌ Failed to update ticket."));
+        body: JSON.stringify({ id: ticketId, status, expected_ready, actual_ready, delay_reason })
+      });
+      const result = await res.json();
+      if (result.success) {
+        alert("✅ Ticket updated successfully!");
+        window.location.href = "/ticket-view.html";
+      } else {
+        alert("❌ " + result.message);
+      }
     });
+
+    loadTicket();
   </script>
 </body>
 </html>
