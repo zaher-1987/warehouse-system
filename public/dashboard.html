@@ -1,62 +1,64 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>📦 Warehouse Dashboard</title>
-  <!-- existing styles here -->
+  <style>
+    body { font-family: Arial, sans-serif; padding: 30px; background: #f4f6f8; position: relative; }
+    h2 { margin-bottom: 10px; }
+    /* ... rest of your styles ... */
+  </style>
 </head>
 <body>
-  <!-- existing body content here -->
+  <!-- Admin buttons -->
+  <a class="logout" href="/logout">🚪 Logout</a>
+  <a class="ticket-button" id="viewTicketsBtn" href="/ticket-view.html" style="display:none;">🎫 View Tickets</a>
+  <button id="createWarehouseBtn" style="display:none;">➕ Create Warehouse</button>
 
+  <h2>📦 Warehouse Inventory Dashboard</h2>
+  <p id="userWarehouseInfo">Checking session...</p>
+  <!-- Modal for create warehouse -->
+  <div id="createWarehouseModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeWarehouseModal()">×</span>
+      <h3>Create New Warehouse</h3>
+      <input id="warehouseNameInput" placeholder="Enter warehouse name" style="padding:8px; width: 80%;" />
+      <button onclick="submitNewWarehouse()">✅ Save</button>
+    </div>
+  </div>
   <script>
-    // existing JavaScript code here
-  </script>
-
-<!-- 🏗️ Add Warehouse Modal (admin only) -->
-<div id="addWarehouseModal" style="display:none; position:fixed; top:20%; left:50%; transform:translate(-50%, -20%);
-    background:white; padding:20px; border-radius:8px; box-shadow:0 0 10px rgba(0,0,0,0.2); z-index:1000;">
-  <h3>Add New Warehouse</h3>
-  <label>Name: <input type="text" id="newWarehouseName" style="padding:5px;"/></label><br><br>
-  <button onclick="submitNewWarehouse()" style="padding:8px 16px;">✅ Save</button>
-  <button onclick="document.getElementById('addWarehouseModal').style.display='none'" style="padding:8px 16px;">❌ Cancel</button>
-</div>
-
-<script>
-  function openAddWarehouseModal() {
-    document.getElementById('addWarehouseModal').style.display = 'block';
-  }
-
-  async function submitNewWarehouse() {
-    const name = document.getElementById('newWarehouseName').value.trim();
-    if (!name) return alert('Warehouse name is required');
-
-    const res = await fetch('/warehouses', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name })
+    async function checkSession() {
+      const res = await fetch('/session-status');
+      const data = await res.json();
+      if (data?.user?.role === 'admin') {
+        document.getElementById("createWarehouseBtn").style.display = "inline-block";
+      }
+    }
+    document.getElementById("createWarehouseBtn")?.addEventListener("click", () => {
+      document.getElementById("createWarehouseModal").style.display = "block";
     });
-
-    if (res.ok) {
-      alert('✅ Warehouse added successfully');
-      location.reload();
-    } else {
-      alert('❌ Failed to add warehouse');
+    function closeWarehouseModal() {
+      document.getElementById("createWarehouseModal").style.display = "none";
     }
-  }
-
-  async function maybeShowAddWarehouseBtn() {
-    const res = await fetch('/session-status');
-    const data = await res.json();
-    if (data.loggedIn && data.user.role === 'admin') {
-      const btn = document.createElement('button');
-      btn.innerHTML = '➕ Add Warehouse';
-      btn.onclick = openAddWarehouseModal;
-      btn.style = "background:#5cb85c; color:white; padding:10px 16px; border:none; border-radius:4px; margin-right:10px;";
-      document.querySelector('h2').insertAdjacentElement('afterend', btn);
+    async function submitNewWarehouse() {
+      const name = document.getElementById("warehouseNameInput").value;
+      if (!name) return alert("Warehouse name required.");
+      const res = await fetch('/create-warehouse', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ warehouse_name: name })
+      });
+      const result = await res.json();
+      if (result.success) {
+        alert("✅ Warehouse added.");
+        closeWarehouseModal();
+        location.reload();
+      } else {
+        alert("❌ Failed: " + result.message);
+      }
     }
-  }
-  maybeShowAddWarehouseBtn();
-</script>
-
+    checkSession();
+  </script>
 </body>
 </html>
