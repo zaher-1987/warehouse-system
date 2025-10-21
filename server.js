@@ -224,6 +224,7 @@ function checkAutoTicketLogic() {
         if (percent <= 60 && !tickets.some(t => t.item_id === itemId && t.warehouse === wh.name)) {
           tickets.push({
             id: tickets.length ? tickets.length + 1 : 1,
+            warehouse_id: wh.id,
             warehouse: wh.name,
             item_id: itemId,
             quantity: mainItem.quantity,
