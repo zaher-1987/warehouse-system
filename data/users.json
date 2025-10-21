@@ -3,7 +3,7 @@
     "username": "admin",
     "password": "admin123",
     "role": "admin",
-    "warehouse_id": 1   // 👈 this line connects admin to Main Warehouse
+    "warehouse_id": 1
   },
   {
     "id": 5,
