@@ -1,14 +1,32 @@
 [
   {
-    "item_id": "V005",
+    "item_id": "K001",
+    "name": "KidneyRx",
     "warehouse_id": 1,
-    "name": "KidneyRX",
     "quantity": 3000
   },
   {
-    "item_id": "L002",
+    "item_id": "L001",
+    "name": "LiverRx",
     "warehouse_id": 2,
-    "name": "LiverRX",
     "quantity": 200
+  },
+  {
+    "item_id": "H001",
+    "name": "HeartRx",
+    "warehouse_id": 3,
+    "quantity": 150
+  },
+  {
+    "item_id": "K001",
+    "name": "KidneyRx",
+    "warehouse_id": 4,
+    "quantity": 90
+  },
+  {
+    "item_id": "L001",
+    "name": "LiverRx",
+    "warehouse_id": 5,
+    "quantity": 70
   }
 ]
