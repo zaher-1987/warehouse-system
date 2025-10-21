@@ -5,11 +5,11 @@
     "role": "admin"
   },
   {
-  "id": 5,
-  "username": "production",
-  "password": "12345",
-  "role": "production",
-  "warehouse_id": 1  // main warehouse ID
+    "id": 5,
+    "username": "production",
+    "password": "12345",
+    "role": "production",
+    "warehouse_id": 1
   },
   {
     "username": "staff",
