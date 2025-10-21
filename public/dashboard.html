@@ -17,7 +17,7 @@
       margin-bottom: 20px;
       font-style: italic;
     }
-    select, input[type="text"] {
+    select, input[type="text"], input[type="number"], input[type="date"] {
       padding: 6px 10px;
       margin-right: 10px;
     }
@@ -105,7 +105,7 @@
 </head>
 <body>
   <a class="logout" href="/logout">🚪 Logout</a>
-  <a class="ticket-button" id="viewTicketsBtn" href="#" style="display:none;">🎫 View Tickets</a>
+  <a class="ticket-button" id="viewTicketsBtn" href="#" style="display:none;">🎛 View Tickets</a>
   <h2>📦 Warehouse Inventory Dashboard</h2>
   <p id="userWarehouseInfo">Checking session...</p>
 
@@ -137,25 +137,27 @@
     </thead>
     <tbody></tbody>
   </table>
-<div id="sendStockSection" style="display:none; margin-top: 30px;">
-  <h3>🚚 Send Stock to Other Warehouse</h3>
-  <label>Target Warehouse:</label>
-  <select id="targetWarehouseDropdown"></select><br><br>
 
-  <label>Product:</label>
-  <select id="productDropdown"></select><br><br>
+  <div id="sendStockSection" style="display:none; margin-top: 30px;">
+    <h3>🚚 Send Stock to Other Warehouse</h3>
+    <label>Target Warehouse:</label>
+    <select id="targetWarehouseDropdown"></select><br><br>
 
-  <label>Quantity:</label>
-  <input type="number" id="stockQuantity" min="1"><br><br>
+    <label>Product:</label>
+    <select id="productDropdown"></select><br><br>
 
-  <label>Request Date:</label>
-  <input type="date" id="requestDate"><br><br>
+    <label>Quantity:</label>
+    <input type="number" id="stockQuantity" min="1"><br><br>
 
-  <label>Collect Date:</label>
-  <input type="date" id="collectDate"><br><br>
+    <label>Request Date:</label>
+    <input type="date" id="requestDate"><br><br>
 
-  <button onclick="sendStock()">📦 Send Stock</button>
-</div>
+    <label>Collect Date:</label>
+    <input type="date" id="collectDate"><br><br>
+
+    <button onclick="sendStock()">📦 Send Stock</button>
+  </div>
+
   <div id="chartModal" class="modal">
     <div class="modal-content">
       <span class="close" onclick="closeChartModal()">×</span>
@@ -184,7 +186,6 @@
           ? 'Logged in as Admin (all warehouses)'
           : `Logged in as ${userRole.charAt(0).toUpperCase() + userRole.slice(1)} - Warehouse: ${assignedWarehouse}`;
 
-      // 🎫 View Tickets logic for each role
       const viewBtn = document.getElementById('viewTicketsBtn');
       if (userRole === 'production') {
         viewBtn.href = '/production-view.html';
@@ -199,6 +200,11 @@
         document.getElementById('createWarehouseBtn').style.display = 'inline-block';
       }
 
+      if (userRole === 'admin' && assignedWarehouse === 'Main Warehouse') {
+        document.getElementById('sendStockSection').style.display = 'block';
+        populateDropdowns();
+      }
+
       if (userRole === 'staff') {
         document.getElementById('warehouseFilter').style.display = 'none';
       }
@@ -207,10 +213,6 @@
     }
 
     function toggleEditMode() {
-      if (userRole !== 'admin') {
-        alert('❌ Only admin can edit items.');
-        return;
-      }
       editMode = !editMode;
       document.getElementById('editToggle').textContent =
         editMode ? '🚫 Disable Edit Mode' : '✏️ Enable Edit Mode';
@@ -236,9 +238,7 @@
 
         if (isVisible) {
           const tr = document.createElement('tr');
-          const cssClass = ['green', 'orange', 'red'].includes(item.status)
-            ? item.status
-            : 'unknown';
+          const cssClass = ['green', 'orange', 'red'].includes(item.status) ? item.status : 'unknown';
           tr.classList.add(cssClass);
 
           let statusIcon = '';
@@ -255,7 +255,7 @@
             <td contenteditable="${editMode}" data-field="name">${item.name}</td>
             <td contenteditable="${editMode}" data-field="quantity">${item.quantity}</td>
             <td>${statusIcon}</td>
-            ${editMode ? '<td><button onclick="saveItem(this)">💾 Save</button></td>' : ''}
+            ${editMode ? '<td><button onclick="saveItem(this)">📅 Save</button></td>' : ''}
           `;
           tbody.appendChild(tr);
         }
@@ -271,11 +271,6 @@
     }
 
     async function saveItem(btn) {
-      if (userRole !== 'admin') {
-        alert('❌ Only admin can edit items.');
-        return;
-      }
-
       const row = btn.closest('tr');
       const warehouse = row.children[0].textContent.trim();
       const item_id = row.children[1].textContent.trim();
@@ -294,7 +289,7 @@
         btn.textContent = '✔️ Saved';
         setTimeout(() => {
           btn.disabled = false;
-          btn.textContent = '💾 Save';
+          btn.textContent = '📅 Save';
           loadInventory();
         }, 1000);
       } else {
@@ -335,6 +330,66 @@
       } else {
         alert('❌ Failed to add warehouse.');
       }
+    }
+
+    async function sendStock() {
+      const targetWarehouse = document.getElementById('targetWarehouseDropdown').value;
+      const productID = document.getElementById('productDropdown').value;
+      const quantity = parseInt(document.getElementById('stockQuantity').value.trim());
+      const requestDate = document.getElementById('requestDate').value;
+      const collectDate = document.getElementById('collectDate').value;
+
+      if (!targetWarehouse || !productID || !quantity || !requestDate || !collectDate) {
+        alert('❌ Please fill all fields before sending stock.');
+        return;
+      }
+
+      const ticket = {
+        from_warehouse: assignedWarehouse,
+        to_warehouse: targetWarehouse,
+        item_id: productID,
+        quantity,
+        request_date: requestDate,
+        collect_date: collectDate,
+        status: 'open'
+      };
+
+      const res = await fetch('/create-ticket', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(ticket)
+      });
+
+      const result = await res.json();
+      if (result.success) {
+        alert('✅ Stock sent successfully!');
+        document.getElementById('stockQuantity').value = '';
+        document.getElementById('requestDate').value = '';
+        document.getElementById('collectDate').value = '';
+      } else {
+        alert('❌ Failed to send stock: ' + result.message);
+      }
+    }
+
+    async function populateDropdowns() {
+      const productDropdown = document.getElementById('productDropdown');
+      productDropdown.innerHTML = `
+        <option value="">Select product</option>
+        <option value="HeartRX">HeartRX</option>
+        <option value="KidneyRX">KidneyRX</option>
+        <option value="LiverRX_Cats">LiverRX for Cats</option>
+        <option value="LiverRX_Dogs">LiverRX for Dogs</option>
+      `;
+
+      const warehouseDropdown = document.getElementById('targetWarehouseDropdown');
+      const res = await fetch('/warehouses');
+      const warehouses = await res.json();
+      warehouseDropdown.innerHTML = '<option value="">Select warehouse</option>';
+      warehouses.forEach(w => {
+        if (w.name !== assignedWarehouse) {
+          warehouseDropdown.innerHTML += `<option value="${w.name}">${w.name}</option>`;
+        }
+      });
     }
 
     document.getElementById('warehouseFilter').addEventListener('change', loadInventory);
