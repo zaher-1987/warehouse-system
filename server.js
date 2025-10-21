@@ -260,4 +260,53 @@ checkAutoTicketLogic();
 app.get('/production-view.html', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'production-view.html'));
 });
+app.post('/send-stock', async (req, res) => {
+  const { from, to, item_id, quantity, request_date, collect_date } = req.body;
+  const itemsPath = path.join(__dirname, 'data', 'items.json');
+  const ticketsPath = path.join(__dirname, 'data', 'tickets.json');
+
+  try {
+    const items = JSON.parse(await fs.readFile(itemsPath, 'utf-8'));
+    const tickets = JSON.parse(await fs.readFile(ticketsPath, 'utf-8'));
+
+    // Find item in Main Warehouse
+    const itemIndex = items.findIndex(i => i.warehouse_name === from && i.item_id === item_id);
+    if (itemIndex === -1) return res.json({ success: false, message: 'Item not found in main warehouse.' });
+
+    const item = items[itemIndex];
+
+    // Check enough stock
+    if (item.quantity < quantity) {
+      return res.json({ success: false, message: 'Not enough stock in main warehouse.' });
+    }
+
+    // Subtract stock
+    items[itemIndex].quantity -= quantity;
+    await fs.writeFile(itemsPath, JSON.stringify(items, null, 2));
+
+    // Add ticket
+    const newTicket = {
+      id: Date.now().toString(),
+      item_id,
+      name: item.name,
+      quantity,
+      from,
+      to,
+      request_date,
+      collect_date,
+      status: "Pending",
+      expected_ready: "",
+      actual_ready: "",
+      delay_reason: ""
+    };
+    tickets.push(newTicket);
+    await fs.writeFile(ticketsPath, JSON.stringify(tickets, null, 2));
+
+    res.json({ success: true, ticket: newTicket });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Server error.' });
+  }
+});
 app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
