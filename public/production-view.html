@@ -1,1 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Production Tickets</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 30px;
+      background: #f9f9f9;
+    }
+    h2 {
+      margin-bottom: 20px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 10px;
+      text-align: left;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+    input[type="date"], input[type="text"] {
+      width: 95%;
+      padding: 6px;
+    }
+    button.save-btn {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      cursor: pointer;
+    }
+    button.save-btn:hover {
+      background: #0056b3;
+    }
+    .header-btns {
+      position: absolute;
+      top: 20px;
+      right: 30px;
+    }
+    .header-btns a {
+      margin-left: 10px;
+      padding: 10px 14px;
+      border: none;
+      border-radius: 5px;
+      text-decoration: none;
+      font-weight: bold;
+    }
+    .home-btn {
+      background: #0d6efd;
+      color: white;
+    }
+    .logout-btn {
+      background: #dc3545;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <div class="header-btns">
+    <a class="home-btn" href="/dashboard.html">🏠 Home</a>
+    <a class="logout-btn" href="/logout">📕 Logout</a>
+  </div>
 
+  <h2>🛠️ Production Tickets (Main Warehouse Only)</h2>
+
+  <table id="ticketTable">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Warehouse</th>
+        <th>Item</th>
+        <th>Qty</th>
+        <th>Request</th>
+        <th>Collect</th>
+        <th>Status</th>
+        <th>Expected Ready</th>
+        <th>Actual Ready</th>
+        <th>Delay Reason</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    async function checkSession() {
+      const res = await fetch('/session-status');
+      const data = await res.json();
+      if (!data.loggedIn || data.user.role !== 'production') {
+        window.location.href = '/login.html';
+        return;
+      }
+    }
+
+    async function loadTickets() {
+      const res = await fetch('/tickets');
+      const tickets = await res.json();
+      const tbody = document.querySelector('#ticketTable tbody');
+      tbody.innerHTML = '';
+
+      const filtered = tickets.filter(t => t.warehouse_name === 'Main Warehouse');
+
+      filtered.forEach(t => {
+        const tr = document.createElement('tr');
+
+        tr.innerHTML = `
+          <td>${t.id}</td>
+          <td>${t.warehouse_name}</td>
+          <td>${t.item_id}</td>
+          <td>${t.quantity}</td>
+          <td>${t.request_date}</td>
+          <td>${t.collect_date}</td>
+          <td>${t.status}</td>
+          <td><input type="date" id="expected_${t.id}" value="${t.expected_ready || ''}"></td>
+          <td><input type="date" id="actual_${t.id}" value="${t.actual_ready || ''}"></td>
+          <td><input type="text" id="delay_${t.id}" value="${t.delay_reason || ''}"></td>
+          <td><button class="save-btn" onclick="saveTicket(${t.id})">💾 Save</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function saveTicket(id) {
+      const expected_ready = document.getElementById(`expected_${id}`).value;
+      const actual_ready = document.getElementById(`actual_${id}`).value;
+      const delay_reason = document.getElementById(`delay_${id}`).value;
+
+      const res = await fetch('/update-ticket-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, expected_ready, actual_ready, delay_reason })
+      });
+
+      const result = await res.json();
+      if (result.success) {
+        alert('✅ Ticket updated successfully');
+        loadTickets();
+      } else {
+        alert('❌ ' + result.message);
+      }
+    }
+
+    checkSession().then(loadTickets);
+  </script>
+</body>
+</html>
