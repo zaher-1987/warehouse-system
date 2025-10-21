@@ -1,5 +1,29 @@
 [
   {
+    "warehouse_name": "Main Warehouse",
+    "item_id": "H001",
+    "name": "HeartRX",
+    "quantity": 10000
+  },
+  {
+    "warehouse_name": "Main Warehouse",
+    "item_id": "K001",
+    "name": "KidneyRX",
+    "quantity": 8000
+  },
+  {
+    "warehouse_name": "Main Warehouse",
+    "item_id": "L001",
+    "name": "LiverRX (Cats)",
+    "quantity": 6000
+  },
+  {
+    "warehouse_name": "Main Warehouse",
+    "item_id": "L002",
+    "name": "LiverRX (Dogs)",
+    "quantity": 5000
+  },
+  {
     "item_id": "K001",
     "name": "KidneyRx",
     "warehouse_id": 1,
