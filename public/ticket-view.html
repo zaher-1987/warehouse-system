@@ -5,61 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>🎫 Ticket View</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 30px;
-      background: #f8f9fa;
-    }
-    h1 {
-      margin-bottom: 20px;
-    }
-    .top-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-    }
-    .btn-home {
-      background: #6c757d;
-      color: white;
-      padding: 8px 16px;
-      border-radius: 5px;
-      text-decoration: none;
-    }
-    .btn-home:hover {
-      background: #5a6268;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      background: #fff;
-    }
-    th, td {
-      border: 1px solid #ddd;
-      padding: 10px;
-      text-align: left;
-    }
-    th {
-      background: #f2f2f2;
-    }
-    a.btn {
-      padding: 6px 10px;
-      background: #0d6efd;
-      color: white;
-      border-radius: 4px;
-      text-decoration: none;
-    }
-    a.btn:hover {
-      background: #0b5ed7;
-    }
-  </style>
-</head>
-<body>
+    <body>
+  <h2>📋 All Tickets Overview</h2>
 
-  <div class="top-bar">
-    <h1>📋 All Tickets Overview</h1>
-    <a href="/dashboard.html" class="btn-home">🏠 Home</a>
-  </div>
+  <!-- 🔽 Filter Dropdown -->
+  <label for="statusFilter">Filter by Status:</label>
+  <select id="statusFilter">
+    <option value="all">All</option>
+    <option value="Pending">Pending</option>
+    <option value="Closed">Closed</option>
+    <option value="In Progress">In Progress</option>
+  </select>
 
   <table id="ticketTable">
     <thead>
@@ -73,38 +29,56 @@
         <th>Expected Ready</th>
         <th>Actual Ready</th>
         <th>Delay Reason</th>
-        <th>Updated</th>
+        <th>🕒 Updated</th>
       </tr>
     </thead>
     <tbody></tbody>
   </table>
 
   <script>
-    async function loadTickets() {
-      const res = await fetch('/tickets');
-      const tickets = await res.json();
-      const tbody = document.querySelector('#ticketTable tbody');
-      tbody.innerHTML = '';
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        const res = await fetch('/tickets');
+        const data = await res.json();
 
-      tickets.forEach(t => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${t.id}</td>
-          <td>${t.from || 'Unknown'}</td>
-          <td>${t.to || 'Unknown'}</td>
-          <td>${t.item_name || 'Unknown'}</td>
-          <td>${t.quantity}</td>
-          <td>${t.status || ''}</td>
-          <td>${t.expected_ready || ''}</td>
-          <td>${t.actual_ready || ''}</td>
-          <td>${t.delay_reason || ''}</td>
-          <td><a href="/ticket-update.html?id=${t.id}" class="btn">✏️ Update</a></td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
+        const tableBody = document.querySelector("#ticketTable tbody");
+        const statusFilter = document.getElementById("statusFilter");
 
-    loadTickets();
+        function renderTable(tickets) {
+          tableBody.innerHTML = "";
+          tickets.forEach(ticket => {
+            const row = document.createElement("tr");
+            row.innerHTML = `
+              <td>${ticket.id}</td>
+              <td>${ticket.from_warehouse}</td>
+              <td>${ticket.to_warehouse}</td>
+              <td>${ticket.name}</td>
+              <td>${ticket.quantity}</td>
+              <td>${ticket.status}</td>
+              <td>${ticket.expected_ready || "-"}</td>
+              <td>${ticket.actual_ready || "-"}</td>
+              <td>${ticket.delay_reason || "-"}</td>
+              <td>${ticket.updated_at ? new Date(ticket.updated_at).toLocaleString() : "-"}</td>
+            `;
+            tableBody.appendChild(row);
+          });
+        }
+
+        // Initial render
+        renderTable(data);
+
+        // Filter by status
+        statusFilter.addEventListener("change", () => {
+          const selected = statusFilter.value;
+          const filtered = selected === "all"
+            ? data
+            : data.filter(t => t.status === selected);
+          renderTable(filtered);
+        });
+      } catch (err) {
+        console.error("❌ Failed to load tickets:", err);
+      }
+    });
   </script>
 </body>
 </html>
