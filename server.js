@@ -45,9 +45,11 @@ app.post("/login", async (req, res) => {
   const { username, password } = req.body;
   const users = await readJson(USERS_FILE);
   const warehouses = await readJson(WAREHOUSE_FILE);
+
   const found = users.find(
     (u) => u.username === username && u.password === password
   );
+
   if (!found)
     return res.send("❌ Invalid credentials. <a href='/login.html'>Try again</a>");
 
@@ -261,12 +263,13 @@ app.post("/send-stock", async (req, res) => {
 
     await writeJson(ITEM_FILE, items);
 
-        const newTicket = {
+    // ✅ Create proper ticket with full info
+    const newTicket = {
       id: Date.now(),
-      from_warehouse: from || mainWarehouse.name,
-      to_warehouse: toWarehouse?.name || to,
+      from_warehouse: from || mainWarehouse.name || "Main Warehouse",
+      to_warehouse: toWarehouse?.name || to || "Unknown",
       item_id,
-      name: mainItem.name,
+      name: mainItem.name || "Unknown Item",
       quantity,
       request_date: request_date || "",
       collect_date: collect_date || "",
@@ -289,22 +292,18 @@ app.post("/send-stock", async (req, res) => {
   }
 });
 
-// ✅ Update ticket status fields (from ticket-update.html)
+// ✅ Update ticket status
 app.post("/update-ticket-status", async (req, res) => {
   try {
-    const {
-      id,
-      status,
-      expected_ready,
-      actual_ready,
-      delay_reason,
-    } = req.body;
+    const { id, status, expected_ready, actual_ready, delay_reason } = req.body;
 
     const tickets = await readJson(TICKET_FILE);
     const ticket = tickets.find((t) => t.id === parseInt(id));
 
     if (!ticket) {
-      return res.status(404).json({ success: false, message: "Ticket not found." });
+      return res
+        .status(404)
+        .json({ success: false, message: "Ticket not found." });
     }
 
     ticket.status = status;
@@ -318,15 +317,12 @@ app.post("/update-ticket-status", async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error("❌ Failed to update ticket:", err);
-    res.status(500).json({ success: false, message: "Server error" });
+    res
+      .status(500)
+      .json({ success: false, message: "Server error updating ticket" });
   }
 });
 
-// ✅ Root
-app.get("/", (req, res) => res.redirect("/login.html"));
-app.get("/production-view.html", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "production-view.html"));
-});
 // ✅ Get all tickets (enriched with warehouse names)
 app.get("/tickets", async (req, res) => {
   try {
@@ -342,8 +338,9 @@ app.get("/tickets", async (req, res) => {
       );
       return {
         ...t,
-        from_warehouse: from ? from.name : t.from_warehouse,
-        to_warehouse: to ? to.name : t.to_warehouse,
+        from_warehouse: from ? from.name : t.from_warehouse || "-",
+        to_warehouse: to ? to.name : t.to_warehouse || "-",
+        name: t.name || "Unknown Item",
         updated_at: t.updated_at || null,
       };
     });
@@ -355,6 +352,13 @@ app.get("/tickets", async (req, res) => {
   }
 });
 
+// ✅ Root
+app.get("/", (req, res) => res.redirect("/login.html"));
+app.get("/production-view.html", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "production-view.html"));
+});
+
+// ✅ Start server
 app.listen(PORT, () =>
   console.log(`🚀 Server running on http://localhost:${PORT}`)
 );
