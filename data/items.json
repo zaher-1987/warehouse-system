@@ -1,50 +1,10 @@
 [
-  {
-    "item_id": "H001",
-    "name": "HeartRX",
-    "warehouse_id": 1,
-    "quantity": 10000
-  },
-  {
-    "item_id": "K001",
-    "name": "KidneyRX",
-    "warehouse_id": 1,
-    "quantity": 8000
-  },
-  {
-    "item_id": "L001",
-    "name": "LiverRX (Cats)",
-    "warehouse_id": 1,
-    "quantity": 6000
-  },
-  {
-    "item_id": "L002",
-    "name": "LiverRX (Dogs)",
-    "warehouse_id": 1,
-    "quantity": 5000
-  },
-  {
-    "item_id": "L001",
-    "name": "LiverRX (Cats)",
-    "warehouse_id": 2,
-    "quantity": 200
-  },
-  {
-    "item_id": "H001",
-    "name": "HeartRX",
-    "warehouse_id": 3,
-    "quantity": 150
-  },
-  {
-    "item_id": "K001",
-    "name": "KidneyRX",
-    "warehouse_id": 4,
-    "quantity": 90
-  },
-  {
-    "item_id": "L001",
-    "name": "LiverRX (Cats)",
-    "warehouse_id": 5,
-    "quantity": 70
-  }
+  { "item_id": "H001", "name": "HeartRX", "warehouse_id": 1, "quantity": 10000 },
+  { "item_id": "K001", "name": "KidneyRX", "warehouse_id": 1, "quantity": 8000 },
+  { "item_id": "L001", "name": "LiverRX (Cats)", "warehouse_id": 1, "quantity": 6000 },
+  { "item_id": "L002", "name": "LiverRX (Dogs)", "warehouse_id": 1, "quantity": 5000 },
+  { "item_id": "L001", "name": "LiverRX (Cats)", "warehouse_id": 2, "quantity": 200 },
+  { "item_id": "H001", "name": "HeartRX", "warehouse_id": 3, "quantity": 150 },
+  { "item_id": "K001", "name": "KidneyRX", "warehouse_id": 4, "quantity": 90 },
+  { "item_id": "L001", "name": "LiverRX (Cats)", "warehouse_id": 5, "quantity": 70 }
 ]
