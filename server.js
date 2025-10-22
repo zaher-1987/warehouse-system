@@ -109,7 +109,7 @@ app.post("/add-warehouse", requireAdmin, async (req, res) => {
   res.json({ success: true });
 });
 
-// ✅ Items
+// ✅ Items route (warehouse restricted)
 app.get("/items", async (req, res) => {
   const user = req.session.user;
   if (!user) return res.status(403).json([]);
@@ -117,6 +117,7 @@ app.get("/items", async (req, res) => {
   const items = await readJson(ITEM_FILE);
   const warehouses = await readJson(WAREHOUSE_FILE);
 
+  // Admin sees everything
   if (user.role === "admin") {
     const enriched = items.map((item) => {
       const warehouse = warehouses.find((w) => w.id === item.warehouse_id);
@@ -125,26 +126,38 @@ app.get("/items", async (req, res) => {
     return res.json(enriched);
   }
 
-  const filtered = items.filter((i) => i.warehouse_id === user.warehouse_id);
+  // Regular warehouse user: only their own items
+  const filtered = items
+    .filter((i) => i.warehouse_id === user.warehouse_id)
+    .map((item) => {
+      const warehouse = warehouses.find((w) => w.id === item.warehouse_id);
+      return { ...item, warehouse_name: warehouse?.name || "-" };
+    });
+
   res.json(filtered);
 });
 
-// 📦 Return inventory items with warehouse name + status
+// 📦 Return inventory items (protected by user role)
 app.get("/inventory-status", async (req, res) => {
   try {
+    const user = req.session.user;
+    if (!user) return res.status(403).json({ error: "Not authenticated" });
+
     const items = await readJson(ITEM_FILE);
     const warehouses = await readJson(WAREHOUSE_FILE);
-
-    if (!Array.isArray(items) || !Array.isArray(warehouses)) {
-      return res.status(500).json({ error: "Data format error" });
-    }
 
     const mainWarehouse = warehouses.find((w) =>
       w.name.toLowerCase().includes("main")
     );
     if (!mainWarehouse) return res.json([]);
 
-    const result = items.map((item) => {
+    // Restrict items by role
+    const visibleItems =
+      user.role === "admin"
+        ? items
+        : items.filter((i) => i.warehouse_id === user.warehouse_id);
+
+    const result = visibleItems.map((item) => {
       const warehouse = warehouses.find((w) => w.id === item.warehouse_id);
       const warehouse_name = warehouse ? warehouse.name : "Unknown";
 
@@ -172,7 +185,9 @@ app.get("/inventory-status", async (req, res) => {
       };
     });
 
-    console.log("✅ /inventory-status returned", result.length, "items");
+    console.log(
+      `✅ /inventory-status returned ${result.length} items for ${user.username} (${user.role})`
+    );
     res.json(result);
   } catch (err) {
     console.error("❌ Failed to load inventory:", err);
@@ -213,8 +228,7 @@ app.post("/update-quantities", requireAdmin, async (req, res) => {
 // ✅ Send stock route
 app.post("/send-stock", async (req, res) => {
   try {
-    const { from, to, item_id, quantity, request_date, collect_date } =
-      req.body;
+    const { from, to, item_id, quantity, request_date, collect_date } = req.body;
 
     const warehouses = await readJson(WAREHOUSE_FILE);
     const items = await readJson(ITEM_FILE);
@@ -263,7 +277,6 @@ app.post("/send-stock", async (req, res) => {
 
     await writeJson(ITEM_FILE, items);
 
-    // ✅ Create proper ticket with full info
     const newTicket = {
       id: Date.now(),
       from_warehouse: from || mainWarehouse.name || "Main Warehouse",
@@ -300,11 +313,8 @@ app.post("/update-ticket-status", async (req, res) => {
     const tickets = await readJson(TICKET_FILE);
     const ticket = tickets.find((t) => t.id === parseInt(id));
 
-    if (!ticket) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Ticket not found." });
-    }
+    if (!ticket)
+      return res.status(404).json({ success: false, message: "Ticket not found." });
 
     ticket.status = status;
     ticket.expected_ready = expected_ready;
@@ -317,13 +327,11 @@ app.post("/update-ticket-status", async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error("❌ Failed to update ticket:", err);
-    res
-      .status(500)
-      .json({ success: false, message: "Server error updating ticket" });
+    res.status(500).json({ success: false, message: "Server error updating ticket" });
   }
 });
 
-// ✅ Get all tickets (enriched with warehouse names)
+// ✅ Get all tickets
 app.get("/tickets", async (req, res) => {
   try {
     const tickets = await readJson(TICKET_FILE);
@@ -352,7 +360,7 @@ app.get("/tickets", async (req, res) => {
   }
 });
 
-// ✅ Root
+// ✅ Root routes
 app.get("/", (req, res) => res.redirect("/login.html"));
 app.get("/production-view.html", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "production-view.html"));
