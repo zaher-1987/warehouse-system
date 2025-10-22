@@ -13,12 +13,13 @@ async function checkSession() {
   assignedWarehouse = data.user.warehouse_name || '';
 
   document.getElementById('editToggle').addEventListener('click', () => {
-  editMode = !editMode;
-  document.getElementById('editToggle').textContent = editMode ? '🔒 Disable Edit Mode' : '✏️ Enable Edit Mode';
-  document.getElementById('saveQuantitiesBtn').style.display = editMode ? 'inline-block' : 'none';
-  loadInventory();
-});
-document.getElementById('saveQuantitiesBtn').addEventListener('click', saveEditedQuantities);
+    editMode = !editMode;
+    document.getElementById('editToggle').textContent = editMode ? '🔒 Disable Edit Mode' : '✏️ Enable Edit Mode';
+    document.getElementById('saveQuantitiesBtn').style.display = editMode ? 'inline-block' : 'none';
+    loadInventory();
+  });
+
+  document.getElementById('saveQuantitiesBtn').addEventListener('click', saveEditedQuantities);
 
   const ticketsBtn = document.getElementById('viewTicketsBtn');
   if (userRole === 'production') {
@@ -33,6 +34,35 @@ document.getElementById('saveQuantitiesBtn').addEventListener('click', saveEdite
 
   await populateDropdowns();
   await loadInventory();
+}
+
+// ✅ Save Edited Quantities (global)
+function saveEditedQuantities() {
+  const rows = document.querySelectorAll('#inventoryTable tbody tr');
+  const updates = [];
+
+  rows.forEach(row => {
+    const warehouse = row.children[0].textContent;
+    const item_id = row.children[1].textContent;
+    const quantity = row.children[3].textContent.trim();
+
+    updates.push({ warehouse_name: warehouse, item_id, quantity });
+  });
+
+  fetch('/update-quantities', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates)
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        alert('✅ Inventory quantities saved successfully!');
+        loadInventory(); // Refresh
+      } else {
+        alert('❌ Failed to save inventory.');
+      }
+    });
 }
 
 // ✅ Populate filter and target dropdowns
@@ -168,34 +198,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const div = document.getElementById('createWarehouseContainer');
     div.style.display = div.style.display === 'none' ? 'block' : 'none';
   });
-  function saveEditedQuantities() {
-  const rows = document.querySelectorAll('#inventoryTable tbody tr');
-  const updates = [];
 
-  rows.forEach(row => {
-    const warehouse = row.children[0].textContent;
-    const item_id = row.children[1].textContent;
-    const quantity = row.children[3].textContent.trim();
-
-    updates.push({ warehouse_name: warehouse, item_id, quantity });
-  });
-
-  fetch('/update-quantities', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(updates)
-  })
-    .then(res => res.json())
-    .then(data => {
-      if (data.success) {
-        alert('✅ Inventory quantities saved successfully!');
-        loadInventory(); // Refresh
-      } else {
-        alert('❌ Failed to save inventory.');
-      }
-    });
-}
   document.getElementById('saveWarehouseBtn')?.addEventListener('click', createWarehouse);
   document.getElementById('warehouseFilter')?.addEventListener('change', loadInventory);
 });
-
