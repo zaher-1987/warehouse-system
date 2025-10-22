@@ -1,22 +1,16 @@
 [
-  {
-    "id": 1,
-    "warehouse_id": 1,
-    "warehouse_name": "Main Warehouse",
-    "item_id": "V005",
-    "quantity": 3000,
-    "request_date": "2025-10-02",
-    "collect_date": "2025-10-07",
-    "status": "urgent"
-  },
-  {
-    "id": 2,
-    "warehouse_id": 2,
-    "warehouse_name": "Indonesia",
-    "item_id": "L002",
-    "quantity": 2000,
-    "request_date": "2025-10-02",
-    "collect_date": "2025-10-07",
-    "status": "urgent"
-  }
+ {
+  "id": 1,
+  "from_warehouse": "Main Warehouse",
+  "to_warehouse": "Indonesia",
+  "item_id": "V005",
+  "name": "KidneyRx",
+  "quantity": 3000,
+  "status": "Closed",
+  "expected_ready": "",
+  "actual_ready": "",
+  "delay_reason": "",
+  "updated_at": "2025-10-22T05:01:58.000Z",
+  "created_by": "zaher"
+}
 ]
