@@ -264,16 +264,26 @@
     }
 
     async function populateDropdowns() {
-      const warehouseDropdown = document.getElementById('targetWarehouseDropdown');
-      const res = await fetch('/warehouses');
-      const warehouses = await res.json();
-      warehouseDropdown.innerHTML = '<option value="">Select warehouse</option>';
-      warehouses.forEach(w => {
-        if (w.name !== 'Main Warehouse') {
-          warehouseDropdown.innerHTML += `<option value="${w.name}">${w.name}</option>`;
-        }
-      });
+  const warehouseDropdown = document.getElementById('targetWarehouseDropdown');
+  const filterDropdown = document.getElementById('warehouseFilter');
+
+  const res = await fetch('/warehouses');
+  const warehouses = await res.json();
+
+  // Populate Send Stock dropdown (exclude Main)
+  warehouseDropdown.innerHTML = '<option value="">Select warehouse</option>';
+  warehouses.forEach(w => {
+    if (w.name !== 'Main Warehouse') {
+      warehouseDropdown.innerHTML += `<option value="${w.name}">${w.name}</option>`;
     }
+  });
+
+  // Populate Warehouse Filter dropdown
+  filterDropdown.innerHTML = '<option value="">All</option>';
+  warehouses.forEach(w => {
+    filterDropdown.innerHTML += `<option value="${w.name}">${w.name}</option>`;
+  });
+}
 
     function exportInventory() { window.location.href = '/export-inventory'; }
     function openChartModal() { document.getElementById('chartModal').style.display = 'block'; }
