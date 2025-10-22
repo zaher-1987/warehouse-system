@@ -109,7 +109,7 @@ app.post("/add-warehouse", requireAdmin, async (req, res) => {
   res.json({ success: true });
 });
 
-// ✅ Items route (warehouse restricted)
+// ✅ Items route (Main Warehouse can see all)
 app.get("/items", async (req, res) => {
   const user = req.session.user;
   if (!user) return res.status(403).json([]);
@@ -117,8 +117,8 @@ app.get("/items", async (req, res) => {
   const items = await readJson(ITEM_FILE);
   const warehouses = await readJson(WAREHOUSE_FILE);
 
-  // Admin sees everything
-  if (user.role === "admin") {
+  // Main warehouse (ID 1) and Admins can see all
+  if (user.warehouse_id === 1 || user.role === "admin") {
     const enriched = items.map((item) => {
       const warehouse = warehouses.find((w) => w.id === item.warehouse_id);
       return { ...item, warehouse_name: warehouse?.name || "-" };
@@ -126,7 +126,7 @@ app.get("/items", async (req, res) => {
     return res.json(enriched);
   }
 
-  // Regular warehouse user: only their own items
+  // Other warehouse users only see their own
   const filtered = items
     .filter((i) => i.warehouse_id === user.warehouse_id)
     .map((item) => {
@@ -137,7 +137,7 @@ app.get("/items", async (req, res) => {
   res.json(filtered);
 });
 
-// 📦 Return inventory items (protected by user role)
+// 📦 Return inventory items (Main Warehouse sees all)
 app.get("/inventory-status", async (req, res) => {
   try {
     const user = req.session.user;
@@ -145,15 +145,13 @@ app.get("/inventory-status", async (req, res) => {
 
     const items = await readJson(ITEM_FILE);
     const warehouses = await readJson(WAREHOUSE_FILE);
+    const mainWarehouse = warehouses.find((w) => w.id === 1);
 
-    const mainWarehouse = warehouses.find((w) =>
-      w.name.toLowerCase().includes("main")
-    );
     if (!mainWarehouse) return res.json([]);
 
-    // Restrict items by role
+    // Main Warehouse (ID 1) or Admin can see all
     const visibleItems =
-      user.role === "admin"
+      user.warehouse_id === 1 || user.role === "admin"
         ? items
         : items.filter((i) => i.warehouse_id === user.warehouse_id);
 
@@ -162,9 +160,9 @@ app.get("/inventory-status", async (req, res) => {
       const warehouse_name = warehouse ? warehouse.name : "Unknown";
 
       let status = "unknown";
-      if (warehouse_name !== "Main Warehouse") {
+      if (warehouse.id !== 1) {
         const mainItem = items.find(
-          (i) => i.item_id === item.item_id && i.warehouse_id === mainWarehouse.id
+          (i) => i.item_id === item.item_id && i.warehouse_id === 1
         );
         if (mainItem && mainItem.quantity > 0) {
           const percent = (item.quantity / mainItem.quantity) * 100;
@@ -186,7 +184,7 @@ app.get("/inventory-status", async (req, res) => {
     });
 
     console.log(
-      `✅ /inventory-status returned ${result.length} items for ${user.username} (${user.role})`
+      `✅ /inventory-status returned ${result.length} items for ${user.username} (${user.warehouse_name})`
     );
     res.json(result);
   } catch (err) {
@@ -211,9 +209,7 @@ app.post("/update-quantities", requireAdmin, async (req, res) => {
       const item = items.find(
         (i) => i.item_id === update.item_id && i.warehouse_id === warehouseObj.id
       );
-      if (item) {
-        item.quantity = parseInt(update.quantity);
-      }
+      if (item) item.quantity = parseInt(update.quantity);
     });
 
     await writeJson(ITEM_FILE, items);
@@ -234,9 +230,7 @@ app.post("/send-stock", async (req, res) => {
     const items = await readJson(ITEM_FILE);
     const tickets = await readJson(TICKET_FILE);
 
-    const mainWarehouse = warehouses.find((w) =>
-      w.name.toLowerCase().includes("main")
-    );
+    const mainWarehouse = warehouses.find((w) => w.id === 1);
     const toWarehouse = warehouses.find(
       (w) => w.name.toLowerCase() === to.toLowerCase()
     );
@@ -264,9 +258,8 @@ app.post("/send-stock", async (req, res) => {
     let targetItem = items.find(
       (i) => i.item_id === item_id && i.warehouse_id === toWarehouse.id
     );
-    if (targetItem) {
-      targetItem.quantity += quantity;
-    } else {
+    if (targetItem) targetItem.quantity += quantity;
+    else {
       items.push({
         warehouse_id: toWarehouse.id,
         item_id,
@@ -279,13 +272,13 @@ app.post("/send-stock", async (req, res) => {
 
     const newTicket = {
       id: Date.now(),
-      from_warehouse: from || mainWarehouse.name || "Main Warehouse",
-      to_warehouse: toWarehouse?.name || to || "Unknown",
+      from_warehouse: from || mainWarehouse.name,
+      to_warehouse: toWarehouse?.name || to,
       item_id,
-      name: mainItem.name || "Unknown Item",
+      name: mainItem.name,
       quantity,
-      request_date: request_date || "",
-      collect_date: collect_date || "",
+      request_date,
+      collect_date,
       status: "Pending",
       expected_ready: "",
       actual_ready: "",
