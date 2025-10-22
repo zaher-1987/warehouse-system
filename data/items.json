@@ -1,8 +1,4 @@
 [
-  { "item_id": "H001", "name": "HeartRX", "warehouse_id": 1, "quantity": 10000 },
-  { "item_id": "K001", "name": "KidneyRX", "warehouse_id": 1, "quantity": 8000 },
-  { "item_id": "L001", "name": "LiverRX (Cats)", "warehouse_id": 1, "quantity": 6000 },
-  { "item_id": "L002", "name": "LiverRX (Dogs)", "warehouse_id": 1, "quantity": 5000 },
   { "item_id": "SP15MG8ML", "name": "BASMI 15MG", "warehouse_id": 1, "quantity": 1000 },
   { "item_id": "SP20MG8ML", "name": "BASMI 20MG", "warehouse_id": 1, "quantity": 2000 },
   { "item_id": "SP20B8ML", "name": "BASMI 20MG-B12", "warehouse_id": 1, "quantity": 3000 },
@@ -19,8 +15,15 @@
   { "item_id": "SP20B100ML", "name": "100ML 20MG-B12", "warehouse_id": 1, "quantity": 3200 },
   { "item_id": "SP30MG100ML", "name": "100ML 30MG", "warehouse_id": 1, "quantity": 4200 },
   { "item_id": "SP30B100ML", "name": "100ML 30MG-B12", "warehouse_id": 1, "quantity": 5200 },
-  { "item_id": "L001", "name": "LiverRX (Cats)", "warehouse_id": 2, "quantity": 200 },
+  { "item_id": "SPP45MG", "name": "PINK", "warehouse_id": 1, "quantity": 1300 },
+  { "item_id": "SPG75MG", "name": "GREEN", "warehouse_id": 1, "quantity": 2300 },
+  { "item_id": "SPB105MG", "name": "BLUE", "warehouse_id": 1, "quantity": 3300 },
+  { "item_id": "LVRX90MG30", "name": "LVR-CATS", "warehouse_id": 1, "quantity": 7000 },
+  { "item_id": "LVRX225MG30", "name": "LVR-DOGS", "warehouse_id": 1, "quantity": 8000 },
+  { "item_id": "KIDYEA60", "name": "KIDNEY", "warehouse_id": 1, "quantity": 9000 },
+  { "item_id": "MFIP0001", "name": "EIDD", "warehouse_id": 1, "quantity": 1400 },
+  { "item_id": "LVRX90MG30", "name": "LVR-CATS", "warehouse_id": 2, "quantity": 200 },
   { "item_id": "H001", "name": "HeartRX", "warehouse_id": 3, "quantity": 150 },
-  { "item_id": "K001", "name": "KidneyRX", "warehouse_id": 4, "quantity": 90 },
-  { "item_id": "L001", "name": "LiverRX (Cats)", "warehouse_id": 5, "quantity": 70 }
+  { "item_id": "KIDYEA60", "name": "KIDNEY", "warehouse_id": 4, "quantity": 90 },
+  { "item_id": "LVRX90MG30", "name": "LVR-CATS", "warehouse_id": 5, "quantity": 70 }
 ]
