@@ -81,15 +81,16 @@
             const row = document.createElement("tr");
             row.innerHTML = `
               <td>${ticket.id}</td>
-              <td>${ticket.from_warehouse}</td>
-              <td>${ticket.to_warehouse}</td>
-              <td>${ticket.name}</td>
+              <td>${ticket.from_warehouse || "-"}</td>
+              <td>${ticket.to_warehouse || "-"}</td>
+              <td>${ticket.name || "-"}</td>
               <td>${ticket.quantity}</td>
               <td>${ticket.status}</td>
               <td>${ticket.expected_ready || "-"}</td>
               <td>${ticket.actual_ready || "-"}</td>
               <td>${ticket.delay_reason || "-"}</td>
               <td>${ticket.updated_at ? new Date(ticket.updated_at).toLocaleString() : "-"}</td>
+              <td><a href="/ticket-update.html?id=${ticket.id}" class="btn">Update</a></td>
             `;
             tableBody.appendChild(row);
           });
