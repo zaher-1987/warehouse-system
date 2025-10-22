@@ -354,6 +354,38 @@ app.get("/", (req, res) => res.redirect("/login.html"));
 app.get("/production-view.html", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "production-view.html"));
 });
+app.post('/update-quantities', async (req, res) => {
+  const updates = req.body; // Array of { item_id, warehouse_name, quantity }
+
+  try {
+    const items = JSON.parse(fs.readFileSync('./data/items.json'));
+
+    updates.forEach(update => {
+      const item = items.find(i =>
+        i.item_id === update.item_id && i.warehouse_name === update.warehouse_name
+      );
+      if (item) {
+        item.quantity = parseInt(update.quantity);
+        // Recalculate status
+        if (item.warehouse_name === 'Main Warehouse') {
+          const safeQty = (item.monthly_usage || 1000) * 4;
+          item.status = item.quantity <= safeQty ? 'red' : 'green';
+        } else {
+          const safeQty = (item.monthly_usage || 1000);
+          item.status = item.quantity <= 0.1 * safeQty ? 'red'
+                      : item.quantity <= 0.6 * safeQty ? 'orange'
+                      : 'green';
+        }
+      }
+    });
+
+    fs.writeFileSync('./data/items.json', JSON.stringify(items, null, 2));
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Failed to update quantities:', err);
+    res.status(500).json({ success: false, message: 'Error updating inventory' });
+  }
+});
 
 app.listen(PORT, () =>
   console.log(`🚀 Server running on http://localhost:${PORT}`)
