@@ -25,7 +25,7 @@ const ITEM_FILE = "data/items.json";
 const TICKET_FILE = "data/tickets.json";
 const USERS_FILE = "data/users.json";
 
-// ✅ Read/Write Helpers
+// ✅ Helpers
 async function readJson(file) {
   try {
     const data = await fs.readFile(file, "utf-8");
@@ -38,7 +38,7 @@ async function writeJson(file, data) {
   await fs.writeFile(file, JSON.stringify(data, null, 2));
 }
 
-// ===================== 🌐 AUTH =====================
+// ===================== AUTH =====================
 app.get("/login", (req, res) => res.redirect("/login.html"));
 
 app.post("/login", async (req, res) => {
@@ -78,7 +78,7 @@ function requireAdmin(req, res, next) {
   return res.status(403).send("❌ Admins only. <a href='/login.html'>Login</a>");
 }
 
-// ===================== 🌐 ROUTES =====================
+// ===================== ROUTES =====================
 
 // ✅ Warehouses
 app.get("/warehouses", async (req, res) => {
@@ -113,8 +113,9 @@ app.get("/items", async (req, res) => {
   if (!user) return res.status(403).json([]);
 
   const items = await readJson(ITEM_FILE);
+  const warehouses = await readJson(WAREHOUSE_FILE);
+
   if (user.role === "admin") {
-    const warehouses = await readJson(WAREHOUSE_FILE);
     const enriched = items.map((item) => {
       const warehouse = warehouses.find((w) => w.id === item.warehouse_id);
       return { ...item, warehouse_name: warehouse?.name || "-" };
@@ -135,16 +136,14 @@ app.get("/inventory-status", async (req, res) => {
     const mainWarehouse = warehouses.find((w) =>
       w.name.toLowerCase().includes("main")
     );
-    if (!mainWarehouse) {
-      return res.json([]);
-    }
+    if (!mainWarehouse) return res.json([]);
 
     const mainItems = items.filter((i) => i.warehouse_id === mainWarehouse.id);
     const result = items.map((i) => {
       const warehouse = warehouses.find((w) => w.id === i.warehouse_id);
       const mainItem = mainItems.find((m) => m.item_id === i.item_id);
-
       let status = "unknown";
+
       if (mainItem && i.warehouse_id !== mainWarehouse.id) {
         const pct = (i.quantity / mainItem.quantity) * 100;
         if (pct <= 10) status = "red";
@@ -170,96 +169,33 @@ app.get("/inventory-status", async (req, res) => {
   }
 });
 
-// ✅ Update Item
-app.post("/update-item", requireAdmin, async (req, res) => {
+// ✅ Update quantities (edit mode save)
+app.post("/update-quantities", requireAdmin, async (req, res) => {
   try {
-    const { warehouse, item_id, name, quantity } = req.body;
+    const updates = req.body; // [{ warehouse_name, item_id, quantity }]
     const warehouses = await readJson(WAREHOUSE_FILE);
     const items = await readJson(ITEM_FILE);
 
-    const warehouseObj = warehouses.find((w) => w.name === warehouse);
-    if (!warehouseObj)
-      return res.json({ success: false, message: "Warehouse not found" });
+    updates.forEach((update) => {
+      const warehouseObj = warehouses.find(
+        (w) => w.name === update.warehouse_name
+      );
+      if (!warehouseObj) return;
 
-    const index = items.findIndex(
-      (i) => i.item_id === item_id && i.warehouse_id === warehouseObj.id
-    );
-    if (index === -1)
-      return res.json({ success: false, message: "Item not found" });
+      const item = items.find(
+        (i) => i.item_id === update.item_id && i.warehouse_id === warehouseObj.id
+      );
+      if (item) {
+        item.quantity = parseInt(update.quantity);
+      }
+    });
 
-    items[index].name = name;
-    items[index].quantity = quantity;
     await writeJson(ITEM_FILE, items);
-
-    console.log(`✅ Updated ${item_id} in ${warehouse}: ${quantity}`);
+    console.log(`✅ Updated ${updates.length} item quantities.`);
     res.json({ success: true });
   } catch (err) {
-    console.error("❌ Update error:", err);
-    res.json({ success: false, message: "Server error" });
-  }
-});
-
-// ✅ Tickets (view all)
-app.get("/tickets", async (req, res) => {
-  const warehouses = await readJson(WAREHOUSE_FILE);
-  const tickets = await readJson(TICKET_FILE);
-  const items = await readJson(ITEM_FILE);
-
-  const enriched = tickets.map((t) => {
-    const fromWarehouse = warehouses.find(w => w.name === t.from_warehouse);
-    const toWarehouse = warehouses.find(w => w.name === t.to_warehouse);
-    const item = items.find(i => i.item_id === t.item_id);
-
-    return {
-      ...t,
-      from: fromWarehouse?.name || "Unknown",
-      to: toWarehouse?.name || "Unknown",
-      item_name: item?.name || "Unknown"
-    };
-  });
-
-  res.json(enriched);
-});
-
-// ✅ Update ticket (with status support)
-app.post("/update-ticket-status", async (req, res) => {
-  try {
-    const { id, expected_ready, actual_ready, delay_reason, status } = req.body;
-    const user = req.session.user;
-
-    if (
-      !user ||
-      !(
-        user.role === "admin" ||
-        (user.warehouse_name &&
-          user.warehouse_name.toLowerCase().includes("main"))
-      )
-    ) {
-      return res
-        .status(403)
-        .json({ success: false, message: "Not authorized" });
-    }
-
-    const tickets = await readJson(TICKET_FILE);
-    const ticketId = Number(id);
-
-    const idx = tickets.findIndex((t) => Number(t.id) === ticketId);
-    if (idx === -1)
-      return res
-        .status(404)
-        .json({ success: false, message: "Ticket not found" });
-
-    if (expected_ready) tickets[idx].expected_ready = expected_ready;
-    if (actual_ready) tickets[idx].actual_ready = actual_ready;
-    if (delay_reason) tickets[idx].delay_reason = delay_reason;
-    if (status) tickets[idx].status = status;
-
-    await writeJson(TICKET_FILE, tickets);
-    console.log(`✅ Ticket #${id} updated by ${user.username}`);
-    res.json({ success: true, ticket: tickets[idx] });
-  } catch (err) {
-    console.error("❌ Error in /update-ticket-status:", err);
-    res.status(500).json({ success: false, message: "Server error" });
+    console.error("❌ Failed to update quantities:", err);
+    res.status(500).json({ success: false, message: "Error updating items" });
   }
 });
 
@@ -281,30 +217,19 @@ app.post("/send-stock", async (req, res) => {
     );
 
     if (!mainWarehouse)
-      return res.json({
-        success: false,
-        message: "Main warehouse not found.",
-      });
+      return res.json({ success: false, message: "Main warehouse not found." });
 
     const mainItem = items.find(
       (i) => i.item_id === item_id && i.warehouse_id === mainWarehouse.id
     );
     if (!mainItem)
-      return res.json({
-        success: false,
-        message: "Item not found in main warehouse.",
-      });
+      return res.json({ success: false, message: "Item not found in main warehouse." });
 
     if (mainItem.quantity < quantity)
-      return res.json({
-        success: false,
-        message: "Not enough stock in main warehouse.",
-      });
+      return res.json({ success: false, message: "Not enough stock in main warehouse." });
 
-    // Deduct from main warehouse
+    // Deduct & add
     mainItem.quantity -= quantity;
-
-    // ✅ Add or create item in target warehouse
     let targetItem = items.find(
       (i) => i.item_id === item_id && i.warehouse_id === toWarehouse.id
     );
@@ -321,7 +246,6 @@ app.post("/send-stock", async (req, res) => {
 
     await writeJson(ITEM_FILE, items);
 
-    // ✅ Create new ticket
     const newTicket = {
       id: Date.now(),
       from_warehouse: from,
@@ -349,42 +273,10 @@ app.post("/send-stock", async (req, res) => {
   }
 });
 
-// ✅ Root & Production view
+// ✅ Root
 app.get("/", (req, res) => res.redirect("/login.html"));
 app.get("/production-view.html", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "production-view.html"));
-});
-app.post('/update-quantities', async (req, res) => {
-  const updates = req.body; // Array of { item_id, warehouse_name, quantity }
-
-  try {
-    const items = JSON.parse(fs.readFileSync('./data/items.json'));
-
-    updates.forEach(update => {
-      const item = items.find(i =>
-        i.item_id === update.item_id && i.warehouse_name === update.warehouse_name
-      );
-      if (item) {
-        item.quantity = parseInt(update.quantity);
-        // Recalculate status
-        if (item.warehouse_name === 'Main Warehouse') {
-          const safeQty = (item.monthly_usage || 1000) * 4;
-          item.status = item.quantity <= safeQty ? 'red' : 'green';
-        } else {
-          const safeQty = (item.monthly_usage || 1000);
-          item.status = item.quantity <= 0.1 * safeQty ? 'red'
-                      : item.quantity <= 0.6 * safeQty ? 'orange'
-                      : 'green';
-        }
-      }
-    });
-
-    fs.writeFileSync('./data/items.json', JSON.stringify(items, null, 2));
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Failed to update quantities:', err);
-    res.status(500).json({ success: false, message: 'Error updating inventory' });
-  }
 });
 
 app.listen(PORT, () =>
