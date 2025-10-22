@@ -261,19 +261,20 @@ app.post("/send-stock", async (req, res) => {
 
     await writeJson(ITEM_FILE, items);
 
-    const newTicket = {
+        const newTicket = {
       id: Date.now(),
-      from_warehouse: from,
-      to_warehouse: to,
+      from_warehouse: from || mainWarehouse.name,
+      to_warehouse: toWarehouse?.name || to,
       item_id,
       name: mainItem.name,
       quantity,
-      request_date,
-      collect_date,
+      request_date: request_date || "",
+      collect_date: collect_date || "",
       status: "Pending",
       expected_ready: "",
       actual_ready: "",
       delay_reason: "",
+      updated_at: new Date().toISOString(),
       created_by: req.session.user?.username || "system",
     };
 
