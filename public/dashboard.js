@@ -53,17 +53,28 @@ async function populateDropdowns() {
   });
 }
 
-// ✅ Load filtered inventory
+// ✅ Load filtered inventory (with console log for debugging)
 async function loadInventory() {
   const res = await fetch('/inventory-status');
   const data = await res.json();
+
+  console.log('📦 Raw inventory data from server:', data);
+
   const tbody = document.querySelector('#inventoryTable tbody');
   const selectedWarehouse = document.getElementById('warehouseFilter').value;
 
   tbody.innerHTML = '';
+
   const filtered = selectedWarehouse
     ? data.filter(i => i.warehouse_name === selectedWarehouse)
     : data;
+
+  console.log('🔎 Filtered inventory for warehouse:', selectedWarehouse || 'All', filtered);
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5">No inventory items found.</td></tr>`;
+    return;
+  }
 
   filtered.forEach(item => {
     const tr = document.createElement('tr');
