@@ -293,6 +293,16 @@ app.get("/", (req, res) => res.redirect("/login.html"));
 app.get("/production-view.html", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "production-view.html"));
 });
+// ✅ Get all tickets
+app.get("/tickets", async (req, res) => {
+  try {
+    const tickets = await readJson(TICKET_FILE);
+    res.json(tickets);
+  } catch (err) {
+    console.error("❌ Failed to load tickets:", err);
+    res.status(500).json({ error: "Failed to load tickets" });
+  }
+});
 
 app.listen(PORT, () =>
   console.log(`🚀 Server running on http://localhost:${PORT}`)
