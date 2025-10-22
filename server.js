@@ -128,33 +128,37 @@ app.get("/items", async (req, res) => {
 });
 
 // 📦 Return inventory items with warehouse name + status
-app.get('/inventory-status', async (req, res) => {
+app.get("/inventory-status", async (req, res) => {
   try {
-    const items = await readJSON('./data/items.json');
-    const warehouses = await readJSON('./data/warehouses.json');
+    const items = await readJson(ITEM_FILE);
+    const warehouses = await readJson(WAREHOUSE_FILE);
 
-    const mainWarehouse = warehouses.find(w => w.name.toLowerCase().includes('main'));
-    if (!mainWarehouse) return res.json([]); // fail safe
+    if (!Array.isArray(items) || !Array.isArray(warehouses)) {
+      return res.status(500).json({ error: "Data format error" });
+    }
 
-    const result = items.map(item => {
-      const warehouse = warehouses.find(w => w.id === item.warehouse_id);
-      const warehouse_name = warehouse ? warehouse.name : 'Unknown';
+    const mainWarehouse = warehouses.find((w) =>
+      w.name.toLowerCase().includes("main")
+    );
+    if (!mainWarehouse) return res.json([]);
 
-      let status = 'unknown';
-      if (warehouse_name !== 'Main Warehouse') {
-        // Find the same item in Main Warehouse
+    const result = items.map((item) => {
+      const warehouse = warehouses.find((w) => w.id === item.warehouse_id);
+      const warehouse_name = warehouse ? warehouse.name : "Unknown";
+
+      let status = "unknown";
+      if (warehouse_name !== "Main Warehouse") {
         const mainItem = items.find(
-          i => i.item_id === item.item_id && i.warehouse_id === mainWarehouse.id
+          (i) => i.item_id === item.item_id && i.warehouse_id === mainWarehouse.id
         );
-
         if (mainItem && mainItem.quantity > 0) {
           const percent = (item.quantity / mainItem.quantity) * 100;
-          if (percent <= 10) status = 'red';
-          else if (percent <= 60) status = 'orange';
-          else status = 'green';
+          if (percent <= 10) status = "red";
+          else if (percent <= 60) status = "orange";
+          else status = "green";
         }
       } else {
-        status = 'green'; // Default for main warehouse
+        status = "green";
       }
 
       return {
@@ -162,22 +166,22 @@ app.get('/inventory-status', async (req, res) => {
         item_id: item.item_id,
         name: item.name,
         quantity: item.quantity,
-        status
+        status,
       };
     });
 
-    console.log('✅ /inventory-status returned', result.length, 'items');
+    console.log("✅ /inventory-status returned", result.length, "items");
     res.json(result);
   } catch (err) {
-    console.error('❌ Failed to load inventory:', err);
-    res.status(500).json({ error: 'Failed to load inventory data' });
+    console.error("❌ Failed to load inventory:", err);
+    res.status(500).json({ error: "Failed to load inventory data" });
   }
 });
 
-// ✅ Update quantities (edit mode save)
+// ✅ Update quantities
 app.post("/update-quantities", requireAdmin, async (req, res) => {
   try {
-    const updates = req.body; // [{ warehouse_name, item_id, quantity }]
+    const updates = req.body;
     const warehouses = await readJson(WAREHOUSE_FILE);
     const items = await readJson(ITEM_FILE);
 
@@ -228,13 +232,19 @@ app.post("/send-stock", async (req, res) => {
       (i) => i.item_id === item_id && i.warehouse_id === mainWarehouse.id
     );
     if (!mainItem)
-      return res.json({ success: false, message: "Item not found in main warehouse." });
+      return res.json({
+        success: false,
+        message: "Item not found in main warehouse.",
+      });
 
     if (mainItem.quantity < quantity)
-      return res.json({ success: false, message: "Not enough stock in main warehouse." });
+      return res.json({
+        success: false,
+        message: "Not enough stock in main warehouse.",
+      });
 
-    // Deduct & add
     mainItem.quantity -= quantity;
+
     let targetItem = items.find(
       (i) => i.item_id === item_id && i.warehouse_id === toWarehouse.id
     );
