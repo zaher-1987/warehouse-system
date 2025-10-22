@@ -326,11 +326,28 @@ app.get("/", (req, res) => res.redirect("/login.html"));
 app.get("/production-view.html", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "production-view.html"));
 });
-// ✅ Get all tickets
+// ✅ Get all tickets (enriched with warehouse names)
 app.get("/tickets", async (req, res) => {
   try {
     const tickets = await readJson(TICKET_FILE);
-    res.json(tickets);
+    const warehouses = await readJson(WAREHOUSE_FILE);
+
+    const enriched = tickets.map((t) => {
+      const from = warehouses.find(
+        (w) => w.name.toLowerCase() === t.from_warehouse?.toLowerCase()
+      );
+      const to = warehouses.find(
+        (w) => w.name.toLowerCase() === t.to_warehouse?.toLowerCase()
+      );
+      return {
+        ...t,
+        from_warehouse: from ? from.name : t.from_warehouse,
+        to_warehouse: to ? to.name : t.to_warehouse,
+        updated_at: t.updated_at || null,
+      };
+    });
+
+    res.json(enriched);
   } catch (err) {
     console.error("❌ Failed to load tickets:", err);
     res.status(500).json({ error: "Failed to load tickets" });
