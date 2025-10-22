@@ -7,48 +7,77 @@
   <title>Warehouse System Login</title>
   <style>
     body {
+      margin: 0;
+      padding: 0;
       font-family: sans-serif;
-      max-width: 400px;
-      margin: 40px auto;
-      padding: 20px;
-      border: 1px solid #ddd;
-      border-radius: 6px;
+      background: url('/rx-bg.jpg') no-repeat center center fixed;
+      background-size: cover;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
     }
+
+    .login-container {
+      background: rgba(255, 255, 255, 0.95);
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+      max-width: 400px;
+      width: 90%;
+      text-align: center;
+    }
+
+    h2 {
+      margin-bottom: 20px;
+    }
+
     label {
       display: block;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
+      text-align: left;
     }
+
     input {
       width: 100%;
-      padding: 8px;
+      padding: 10px;
       margin-top: 4px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
     }
+
     button {
-      padding: 10px 15px;
-      background-color: #007bff;
+      width: 100%;
+      padding: 12px;
+      background-color: #F54927;
       color: white;
       border: none;
-      border-radius: 4px;
-      margin-top: 10px;
+      border-radius: 6px;
+      font-size: 16px;
       cursor: pointer;
+      margin-top: 20px;
     }
+
     button:hover {
-      background-color: #0056b3;
+      background-color: #d93e1f;
     }
   </style>
 </head>
 <body>
-  <h2>🔐 Login to Warehouse System</h2>
-  <form method="POST" action="/login">
-    <label>
-      Username:
-      <input type="text" name="username" required />
-    </label>
-    <label>
-      Password:
-      <input type="password" name="password" required />
-    </label>
-    <button type="submit">Login</button>
-  </form>
+  <div class="login-container">
+    <h2>🔐 Login to Warehouse System</h2>
+    <form method="POST" action="/login">
+      <label>
+        Username:
+        <input type="text" name="username" required />
+      </label>
+      <label>
+        Password:
+        <input type="password" name="password" required />
+      </label>
+      <button type="submit">Login</button>
+    </form>
+  </div>
 </body>
 </html>
