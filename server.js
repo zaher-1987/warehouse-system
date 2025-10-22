@@ -288,6 +288,39 @@ app.post("/send-stock", async (req, res) => {
   }
 });
 
+// ✅ Update ticket status fields (from ticket-update.html)
+app.post("/update-ticket-status", async (req, res) => {
+  try {
+    const {
+      id,
+      status,
+      expected_ready,
+      actual_ready,
+      delay_reason,
+    } = req.body;
+
+    const tickets = await readJson(TICKET_FILE);
+    const ticket = tickets.find((t) => t.id === parseInt(id));
+
+    if (!ticket) {
+      return res.status(404).json({ success: false, message: "Ticket not found." });
+    }
+
+    ticket.status = status;
+    ticket.expected_ready = expected_ready;
+    ticket.actual_ready = actual_ready;
+    ticket.delay_reason = delay_reason;
+    ticket.updated_at = new Date().toISOString();
+
+    await writeJson(TICKET_FILE, tickets);
+    console.log(`📝 Updated ticket ${id}`);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ Failed to update ticket:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
 // ✅ Root
 app.get("/", (req, res) => res.redirect("/login.html"));
 app.get("/production-view.html", (req, res) => {
