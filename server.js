@@ -127,45 +127,50 @@ app.get("/items", async (req, res) => {
   res.json(filtered);
 });
 
-// ✅ Inventory Status
-app.get("/inventory-status", async (req, res) => {
+// 📦 Return inventory items with warehouse name + status
+app.get('/inventory-status', async (req, res) => {
   try {
-    const warehouses = await readJson(WAREHOUSE_FILE);
-    const items = await readJson(ITEM_FILE);
+    const items = await readJSON('./data/items.json');
+    const warehouses = await readJSON('./data/warehouses.json');
 
-    const mainWarehouse = warehouses.find((w) =>
-      w.name.toLowerCase().includes("main")
-    );
-    if (!mainWarehouse) return res.json([]);
+    const mainWarehouse = warehouses.find(w => w.name.toLowerCase().includes('main'));
+    if (!mainWarehouse) return res.json([]); // fail safe
 
-    const mainItems = items.filter((i) => i.warehouse_id === mainWarehouse.id);
-    const result = items.map((i) => {
-      const warehouse = warehouses.find((w) => w.id === i.warehouse_id);
-      const mainItem = mainItems.find((m) => m.item_id === i.item_id);
-      let status = "unknown";
+    const result = items.map(item => {
+      const warehouse = warehouses.find(w => w.id === item.warehouse_id);
+      const warehouse_name = warehouse ? warehouse.name : 'Unknown';
 
-      if (mainItem && i.warehouse_id !== mainWarehouse.id) {
-        const pct = (i.quantity / mainItem.quantity) * 100;
-        if (pct <= 10) status = "red";
-        else if (pct <= 60) status = "orange";
-        else status = "green";
-      } else if (i.warehouse_id === mainWarehouse.id) {
-        status = "green";
+      let status = 'unknown';
+      if (warehouse_name !== 'Main Warehouse') {
+        // Find the same item in Main Warehouse
+        const mainItem = items.find(
+          i => i.item_id === item.item_id && i.warehouse_id === mainWarehouse.id
+        );
+
+        if (mainItem && mainItem.quantity > 0) {
+          const percent = (item.quantity / mainItem.quantity) * 100;
+          if (percent <= 10) status = 'red';
+          else if (percent <= 60) status = 'orange';
+          else status = 'green';
+        }
+      } else {
+        status = 'green'; // Default for main warehouse
       }
 
       return {
-        warehouse_name: warehouse?.name || "-",
-        item_id: i.item_id,
-        name: i.name,
-        quantity: i.quantity,
-        status,
+        warehouse_name,
+        item_id: item.item_id,
+        name: item.name,
+        quantity: item.quantity,
+        status
       };
     });
 
+    console.log('✅ /inventory-status returned', result.length, 'items');
     res.json(result);
   } catch (err) {
-    console.error("❌ Error in /inventory-status:", err);
-    res.status(500).json({ success: false, message: "Server error." });
+    console.error('❌ Failed to load inventory:', err);
+    res.status(500).json({ error: 'Failed to load inventory data' });
   }
 });
 
