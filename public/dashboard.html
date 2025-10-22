@@ -25,6 +25,7 @@
       border-radius: 4px;
       margin-bottom: 20px;
     }
+    button:hover { opacity: 0.9; }
     table {
       width: 100%;
       border-collapse: collapse;
@@ -64,6 +65,9 @@
     }
     .close { position: absolute; top: 10px; right: 15px; font-size: 24px; cursor: pointer; }
     iframe { width: 100%; height: 100%; border: none; }
+    .edit-cell {
+      background: #fff9c4;
+    }
   </style>
 </head>
 <body>
@@ -77,13 +81,13 @@
 
   <button onclick="exportInventory()">📁 Export to Excel</button>
   <button onclick="openChartModal()">📊 View Charts</button>
-  <button id="editToggle" style="display:none;" onclick="toggleEditMode()">✏️ Enable Edit Mode</button>
-  <button id="createWarehouseBtn" style="display:none;" onclick="showCreateWarehouse()">➕ Create Warehouse</button>
+  <button id="editToggle" style="display:none;">✏️ Enable Edit Mode</button>
+  <button id="createWarehouseBtn" style="display:none;">➕ Create Warehouse</button>
 
   <div id="createWarehouseContainer" style="display:none; margin-bottom:20px;">
     <h4>Create New Warehouse</h4>
     <input type="text" id="newWarehouseInput" placeholder="Enter warehouse name">
-    <button onclick="saveWarehouse()">✅ Save</button>
+    <button id="saveWarehouseBtn">✅ Save</button>
   </div>
 
   <table id="inventoryTable">
@@ -165,6 +169,7 @@
       loadInventory();
     }
 
+    // ✅ Load all inventory items
     async function loadInventory() {
       const res = await fetch('/inventory-status');
       const data = await res.json();
@@ -182,12 +187,47 @@
           <td>${item.warehouse_name}</td>
           <td>${item.item_id}</td>
           <td>${item.name}</td>
-          <td>${item.quantity}</td>
+          <td class="${editMode ? 'edit-cell' : ''}" contenteditable="${editMode}">${item.quantity}</td>
           <td>${statusIcon}</td>
         `;
         tbody.appendChild(tr);
       });
     }
+
+    // ✅ Enable Edit Mode
+    document.getElementById('editToggle').addEventListener('click', () => {
+      editMode = !editMode;
+      document.getElementById('editToggle').textContent = editMode ? '💾 Disable Edit Mode' : '✏️ Enable Edit Mode';
+      loadInventory();
+      alert(editMode ? 'Edit mode enabled. You can now edit quantities.' : 'Edit mode disabled.');
+    });
+
+    // ✅ Create Warehouse section
+    document.getElementById('createWarehouseBtn').addEventListener('click', () => {
+      const container = document.getElementById('createWarehouseContainer');
+      container.style.display = container.style.display === 'none' ? 'block' : 'none';
+    });
+
+    document.getElementById('saveWarehouseBtn').addEventListener('click', async () => {
+      const name = document.getElementById('newWarehouseInput').value.trim();
+      if (!name) return alert('❌ Please enter a warehouse name.');
+
+      const res = await fetch('/add-warehouse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name })
+      });
+
+      const result = await res.json();
+      if (result.success) {
+        alert('✅ Warehouse created successfully!');
+        document.getElementById('newWarehouseInput').value = '';
+        document.getElementById('createWarehouseContainer').style.display = 'none';
+        loadInventory();
+      } else {
+        alert('❌ ' + result.message);
+      }
+    });
 
     async function sendStock() {
       const targetWarehouse = document.getElementById('targetWarehouseDropdown').value;
@@ -241,6 +281,5 @@
 
     checkSession();
   </script>
-  <script src="js/dashboard.js"></script>
 </body>
 </html>
