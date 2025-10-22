@@ -34,11 +34,58 @@
     th {
       background: #efefef;
     }
+    .btn {
+      display: inline-block;
+      padding: 6px 12px;
+      background: #F54927;
+      color: white;
+      text-decoration: none;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+    /* 🎨 Floating Menu */
+    #floatingMenu {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 1000;
+    }
+    #menuBtn {
+      background-color: #F54927;
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      font-weight: bold;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    #menuDropdown {
+      display: none;
+      position: absolute;
+      right: 0;
+      margin-top: 8px;
+      background-color: white;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      overflow: hidden;
+      min-width: 160px;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+    }
+    #menuDropdown a {
+      display: block;
+      padding: 10px 14px;
+      text-decoration: none;
+      color: #333;
+      font-weight: 500;
+    }
+    #menuDropdown a:hover {
+      background-color: #f2f2f2;
+    }
   </style>
 </head>
 <body>
   <h2>📋 All Tickets Overview</h2>
-  <a href="/dashboard.html" style="display:inline-block;margin-bottom:10px;padding:6px 12px;background:#007bff;color:white;text-decoration:none;border-radius:4px;font-weight:500;">🏠 Home</a>
 
   <!-- 🔽 Filter Dropdown -->
   <label for="statusFilter">Filter by Status:</label>
@@ -47,8 +94,10 @@
     <option value="Pending">Pending</option>
     <option value="Closed">Closed</option>
     <option value="In Progress">In Progress</option>
+    <option value="urgent">Urgent</option>
   </select>
 
+  <!-- 📦 Table -->
   <table id="ticketTable">
     <thead>
       <tr>
@@ -62,10 +111,21 @@
         <th>Actual Ready</th>
         <th>Delay Reason</th>
         <th>🕒 Updated</th>
+        <th>✏️</th>
       </tr>
     </thead>
     <tbody></tbody>
   </table>
+
+  <!-- 🖼 Floating Menu -->
+  <div id="floatingMenu">
+    <button id="menuBtn">☰ Menu</button>
+    <div id="menuDropdown">
+      <a href="/dashboard.html">🏠 Home</a>
+      <a href="/ticket-view.html">🎫 Tickets</a>
+      <a href="/dashboard.html#inventory">📦 Inventory</a>
+    </div>
+  </div>
 
   <script>
     document.addEventListener('DOMContentLoaded', async () => {
@@ -107,6 +167,21 @@
             ? data
             : data.filter(t => t.status === selected);
           renderTable(filtered);
+        });
+
+        // 🎯 Dropdown toggle
+        const menuBtn = document.getElementById("menuBtn");
+        const menuDropdown = document.getElementById("menuDropdown");
+
+        menuBtn.addEventListener("click", () => {
+          menuDropdown.style.display = menuDropdown.style.display === "block" ? "none" : "block";
+        });
+
+        // Optional: close if clicked outside
+        window.addEventListener("click", (e) => {
+          if (!document.getElementById("floatingMenu").contains(e.target)) {
+            menuDropdown.style.display = "none";
+          }
         });
       } catch (err) {
         console.error("❌ Failed to load tickets:", err);
