@@ -171,28 +171,33 @@
 
     // ✅ Load all inventory items
     async function loadInventory() {
-      const res = await fetch('/inventory-status');
-      const data = await res.json();
-      const tbody = document.querySelector('#inventoryTable tbody');
-      tbody.innerHTML = '';
+  const res = await fetch('/inventory-status');
+  const data = await res.json();
+  const tbody = document.querySelector('#inventoryTable tbody');
+  const selectedWarehouse = document.getElementById('warehouseFilter').value;
+  tbody.innerHTML = '';
 
-      data.forEach(item => {
-        const tr = document.createElement('tr');
-        tr.classList.add(item.status || 'unknown');
-        const statusIcon =
-          item.status === 'green' ? '✅' :
-          item.status === 'orange' ? '⚠️' :
-          item.status === 'red' ? '❌' : '❓';
-        tr.innerHTML = `
-          <td>${item.warehouse_name}</td>
-          <td>${item.item_id}</td>
-          <td>${item.name}</td>
-          <td class="${editMode ? 'edit-cell' : ''}" contenteditable="${editMode}">${item.quantity}</td>
-          <td>${statusIcon}</td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
+  const filteredItems = selectedWarehouse
+    ? data.filter(item => item.warehouse_name === selectedWarehouse)
+    : data;
+
+  filteredItems.forEach(item => {
+    const tr = document.createElement('tr');
+    tr.classList.add(item.status || 'unknown');
+    const statusIcon =
+      item.status === 'green' ? '✅' :
+      item.status === 'orange' ? '⚠️' :
+      item.status === 'red' ? '❌' : '❓';
+    tr.innerHTML = `
+      <td>${item.warehouse_name}</td>
+      <td>${item.item_id}</td>
+      <td>${item.name}</td>
+      <td class="${editMode ? 'edit-cell' : ''}" contenteditable="${editMode}">${item.quantity}</td>
+      <td>${statusIcon}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
 
     // ✅ Enable Edit Mode
     document.getElementById('editToggle').addEventListener('click', () => {
