@@ -1,8 +1,11 @@
+// ✅ server.js (with CSV Export Support)
+
 const express = require("express");
 const bodyParser = require("body-parser");
 const session = require("express-session");
 const fs = require("fs").promises;
 const path = require("path");
+const { Parser } = require("json2csv"); // ✅ Added for CSV export
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -82,275 +85,32 @@ function requireAdmin(req, res, next) {
 
 // ===================== ROUTES =====================
 
-// ✅ Warehouses
-app.get("/warehouses", async (req, res) => {
-  const warehouses = await readJson(WAREHOUSE_FILE);
-  res.json(warehouses);
-});
-
-app.post("/add-warehouse", requireAdmin, async (req, res) => {
-  const { name } = req.body;
-  if (!name || !name.trim())
-    return res
-      .status(400)
-      .json({ success: false, message: "Warehouse name required." });
-
-  const warehouses = await readJson(WAREHOUSE_FILE);
-  if (warehouses.find((w) => w.name.toLowerCase() === name.toLowerCase()))
-    return res
-      .status(400)
-      .json({ success: false, message: "Warehouse already exists." });
-
-  const newWarehouse = { id: Date.now(), name: name.trim() };
-  warehouses.push(newWarehouse);
-  await writeJson(WAREHOUSE_FILE, warehouses);
-
-  console.log("✅ Added new warehouse:", newWarehouse);
-  res.json({ success: true });
-});
-
-// ✅ Items route (Main Warehouse can see all)
-app.get("/items", async (req, res) => {
+// ✅ Export inventory as CSV
+app.get("/export/inventory", async (req, res) => {
   const user = req.session.user;
-  if (!user) return res.status(403).json([]);
+  if (!user || user.role !== "admin") return res.status(403).send("Forbidden");
 
-  const items = await readJson(ITEM_FILE);
-  const warehouses = await readJson(WAREHOUSE_FILE);
+  const data = await readJson(ITEM_FILE);
+  const parser = new Parser();
+  const csv = parser.parse(data);
 
-  // Main warehouse (ID 1) and Admins can see all
-  if (user.warehouse_id === 1 || user.role === "admin") {
-    const enriched = items.map((item) => {
-      const warehouse = warehouses.find((w) => w.id === item.warehouse_id);
-      return { ...item, warehouse_name: warehouse?.name || "-" };
-    });
-    return res.json(enriched);
-  }
-
-  // Other warehouse users only see their own
-  const filtered = items
-    .filter((i) => i.warehouse_id === user.warehouse_id)
-    .map((item) => {
-      const warehouse = warehouses.find((w) => w.id === item.warehouse_id);
-      return { ...item, warehouse_name: warehouse?.name || "-" };
-    });
-
-  res.json(filtered);
+  res.header("Content-Type", "text/csv");
+  res.attachment("inventory.csv");
+  res.send(csv);
 });
 
-// 📦 Return inventory items (Main Warehouse sees all)
-app.get("/inventory-status", async (req, res) => {
-  try {
-    const user = req.session.user;
-    if (!user) return res.status(403).json({ error: "Not authenticated" });
+// ✅ Export tickets as CSV
+app.get("/export/tickets", async (req, res) => {
+  const user = req.session.user;
+  if (!user || user.role !== "admin") return res.status(403).send("Forbidden");
 
-    const items = await readJson(ITEM_FILE);
-    const warehouses = await readJson(WAREHOUSE_FILE);
-    const mainWarehouse = warehouses.find((w) => w.id === 1);
+  const data = await readJson(TICKET_FILE);
+  const parser = new Parser();
+  const csv = parser.parse(data);
 
-    if (!mainWarehouse) return res.json([]);
-
-    // Main Warehouse (ID 1) or Admin can see all
-    const visibleItems =
-      user.warehouse_id === 1 || user.role === "admin"
-        ? items
-        : items.filter((i) => i.warehouse_id === user.warehouse_id);
-
-    const result = visibleItems.map((item) => {
-      const warehouse = warehouses.find((w) => w.id === item.warehouse_id);
-      const warehouse_name = warehouse ? warehouse.name : "Unknown";
-
-      let status = "unknown";
-      if (warehouse.id !== 1) {
-        const mainItem = items.find(
-          (i) => i.item_id === item.item_id && i.warehouse_id === 1
-        );
-        if (mainItem && mainItem.quantity > 0) {
-          const percent = (item.quantity / mainItem.quantity) * 100;
-          if (percent <= 10) status = "red";
-          else if (percent <= 60) status = "orange";
-          else status = "green";
-        }
-      } else {
-        status = "green";
-      }
-
-      return {
-        warehouse_name,
-        item_id: item.item_id,
-        name: item.name,
-        quantity: item.quantity,
-        status,
-      };
-    });
-
-    console.log(
-      `✅ /inventory-status returned ${result.length} items for ${user.username} (${user.warehouse_name})`
-    );
-    res.json(result);
-  } catch (err) {
-    console.error("❌ Failed to load inventory:", err);
-    res.status(500).json({ error: "Failed to load inventory data" });
-  }
-});
-
-// ✅ Update quantities
-app.post("/update-quantities", requireAdmin, async (req, res) => {
-  try {
-    const updates = req.body;
-    const warehouses = await readJson(WAREHOUSE_FILE);
-    const items = await readJson(ITEM_FILE);
-
-    updates.forEach((update) => {
-      const warehouseObj = warehouses.find(
-        (w) => w.name === update.warehouse_name
-      );
-      if (!warehouseObj) return;
-
-      const item = items.find(
-        (i) => i.item_id === update.item_id && i.warehouse_id === warehouseObj.id
-      );
-      if (item) item.quantity = parseInt(update.quantity);
-    });
-
-    await writeJson(ITEM_FILE, items);
-    console.log(`✅ Updated ${updates.length} item quantities.`);
-    res.json({ success: true });
-  } catch (err) {
-    console.error("❌ Failed to update quantities:", err);
-    res.status(500).json({ success: false, message: "Error updating items" });
-  }
-});
-
-// ✅ Send stock route
-app.post("/send-stock", async (req, res) => {
-  try {
-    const { from, to, item_id, quantity, request_date, collect_date } = req.body;
-
-    const warehouses = await readJson(WAREHOUSE_FILE);
-    const items = await readJson(ITEM_FILE);
-    const tickets = await readJson(TICKET_FILE);
-
-    const mainWarehouse = warehouses.find((w) => w.id === 1);
-    const toWarehouse = warehouses.find(
-      (w) => w.name.toLowerCase() === to.toLowerCase()
-    );
-
-    if (!mainWarehouse)
-      return res.json({ success: false, message: "Main warehouse not found." });
-
-    const mainItem = items.find(
-      (i) => i.item_id === item_id && i.warehouse_id === mainWarehouse.id
-    );
-    if (!mainItem)
-      return res.json({
-        success: false,
-        message: "Item not found in main warehouse.",
-      });
-
-    if (mainItem.quantity < quantity)
-      return res.json({
-        success: false,
-        message: "Not enough stock in main warehouse.",
-      });
-
-    mainItem.quantity -= quantity;
-
-    let targetItem = items.find(
-      (i) => i.item_id === item_id && i.warehouse_id === toWarehouse.id
-    );
-    if (targetItem) targetItem.quantity += quantity;
-    else {
-      items.push({
-        warehouse_id: toWarehouse.id,
-        item_id,
-        name: mainItem.name,
-        quantity,
-      });
-    }
-
-    await writeJson(ITEM_FILE, items);
-
-    const newTicket = {
-      id: Date.now(),
-      from_warehouse: from || mainWarehouse.name,
-      to_warehouse: toWarehouse?.name || to,
-      item_id,
-      name: mainItem.name,
-      quantity,
-      request_date,
-      collect_date,
-      status: "Pending",
-      expected_ready: "",
-      actual_ready: "",
-      delay_reason: "",
-      updated_at: new Date().toISOString(),
-      created_by: req.session.user?.username || "system",
-    };
-
-    tickets.push(newTicket);
-    await writeJson(TICKET_FILE, tickets);
-
-    console.log(`📦 Sent ${quantity} of ${item_id} from ${from} → ${to}`);
-    res.json({ success: true, ticket: newTicket });
-  } catch (err) {
-    console.error("❌ Error in /send-stock:", err);
-    res.status(500).json({ success: false, message: "Server error" });
-  }
-});
-
-// ✅ Update ticket status
-app.post("/update-ticket-status", async (req, res) => {
-  try {
-    const { id, status, expected_ready, actual_ready, delay_reason } = req.body;
-
-    const tickets = await readJson(TICKET_FILE);
-    const ticket = tickets.find((t) => t.id === parseInt(id));
-
-    if (!ticket)
-      return res.status(404).json({ success: false, message: "Ticket not found." });
-
-    ticket.status = status;
-    ticket.expected_ready = expected_ready;
-    ticket.actual_ready = actual_ready;
-    ticket.delay_reason = delay_reason;
-    ticket.updated_at = new Date().toISOString();
-
-    await writeJson(TICKET_FILE, tickets);
-    console.log(`📝 Updated ticket ${id}`);
-    res.json({ success: true });
-  } catch (err) {
-    console.error("❌ Failed to update ticket:", err);
-    res.status(500).json({ success: false, message: "Server error updating ticket" });
-  }
-});
-
-// ✅ Get all tickets
-app.get("/tickets", async (req, res) => {
-  try {
-    const tickets = await readJson(TICKET_FILE);
-    const warehouses = await readJson(WAREHOUSE_FILE);
-
-    const enriched = tickets.map((t) => {
-      const from = warehouses.find(
-        (w) => w.name.toLowerCase() === t.from_warehouse?.toLowerCase()
-      );
-      const to = warehouses.find(
-        (w) => w.name.toLowerCase() === t.to_warehouse?.toLowerCase()
-      );
-      return {
-        ...t,
-        from_warehouse: from ? from.name : t.from_warehouse || "-",
-        to_warehouse: to ? to.name : t.to_warehouse || "-",
-        name: t.name || "Unknown Item",
-        updated_at: t.updated_at || null,
-      };
-    });
-
-    res.json(enriched);
-  } catch (err) {
-    console.error("❌ Failed to load tickets:", err);
-    res.status(500).json({ error: "Failed to load tickets" });
-  }
+  res.header("Content-Type", "text/csv");
+  res.attachment("tickets.csv");
+  res.send(csv);
 });
 
 // ✅ Root routes
