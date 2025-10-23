@@ -358,6 +358,82 @@ app.get("/", (req, res) => res.redirect("/login.html"));
 app.get("/production-view.html", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "production-view.html"));
 });
+// ✅ Wix order webhook (deduct stock + auto-create ticket)
+app.post("/_functions/orderWebhook", async (req, res) => {
+  try {
+    const raw = await req.body;
+    const order = raw; // already parsed by body-parser
+    console.log("🛒 Order webhook received:", order);
+
+    const skuToWarehouse = {
+      "KIDYEA60": 6,
+      "LVRX90MG30": 6,
+      "LVRX225MG30": 6,
+      "MFIP0001": 6
+    };
+
+    const warehouseId = 6; // India
+    const mainWarehouseId = 1;
+
+    const items = await readJson("data/items.json");
+    let updated = false;
+
+    for (const lineItem of order.lineItems || []) {
+      const sku = lineItem.catalogReference?.catalogItemSku;
+      const quantity = lineItem.quantity || 1;
+
+      if (!sku || !skuToWarehouse[sku]) continue;
+
+      const item = items.find(
+        (i) => i.item_id === sku && i.warehouse_id === warehouseId
+      );
+      if (item) {
+        item.quantity -= quantity;
+        updated = true;
+
+        const percent = item.quantity / 100;
+        if (percent <= 0.6) {
+          const mainItem = items.find(
+            (i) => i.item_id === sku && i.warehouse_id === mainWarehouseId
+          );
+
+          if (mainItem) {
+            const tickets = await readJson("data/tickets.json");
+            const newTicket = {
+              id: Date.now(),
+              from_warehouse: "Main Warehouse",
+              to_warehouse: "India",
+              item_id: sku,
+              name: item.name || sku,
+              quantity: 30,
+              request_date: new Date().toISOString(),
+              collect_date: "",
+              status: "Pending",
+              expected_ready: "",
+              actual_ready: "",
+              delay_reason: "",
+              updated_at: new Date().toISOString(),
+              created_by: "Wix Sync",
+            };
+            tickets.push(newTicket);
+            await writeJson("data/tickets.json", tickets);
+            console.log(`📦 Auto-ticket created for SKU ${sku}`);
+          }
+        }
+      }
+    }
+
+    if (updated) {
+      await writeJson("data/items.json", items);
+      console.log("✅ Stock updated from Wix order");
+    }
+
+    res.json({ received: true });
+  } catch (error) {
+    console.error("❌ Error processing Wix order:", error);
+    res.status(500).json({ error: "Failed to process order" });
+  }
+});
 
 // ✅ Start server
 app.listen(PORT, () =>
