@@ -208,6 +208,64 @@ app.post("/update-quantities", requireAdmin, async (req, res) => {
     res.status(500).json({ success: false, message: "Error updating items" });
   }
 });
+app.get("/inventory-status", async (req, res) => {
+  try {
+    const user = req.session.user;
+    if (!user) return res.status(403).json({ error: "Not authenticated" });
+
+    const items = await readJson(ITEM_FILE);
+    const warehouses = await readJson(WAREHOUSE_FILE);
+    const mainWarehouse = warehouses.find((w) => w.id === 1);
+
+    if (!mainWarehouse) return res.json([]);
+
+    // Main Warehouse (ID 1) or Admin can see all
+    const visibleItems =
+      user.warehouse_id === 1 || user.role === "admin"
+        ? items
+        : items.filter((i) => i.warehouse_id === user.warehouse_id);
+
+    const result = visibleItems.map((item) => {
+      const warehouse = warehouses.find((w) => w.id === item.warehouse_id);
+      const warehouse_name = warehouse ? warehouse.name : "Unknown";
+
+      let status = "unknown";
+      if (warehouse.id !== 1) {
+        const mainItem = items.find(
+          (i) => i.item_id === item.item_id && i.warehouse_id === 1
+        );
+        if (mainItem && mainItem.quantity > 0) {
+          const percent = (item.quantity / mainItem.quantity) * 100;
+          if (percent <= 10) status = "red";
+          else if (percent <= 60) status = "orange";
+          else status = "green";
+        }
+      } else {
+        // 🔁 Check if Main Warehouse item is below safe threshold
+        const percent = item.quantity / 1000; // assuming 1000 is safe baseline
+        if (percent <= 0.1) status = "red";
+        else if (percent <= 0.6) status = "orange";
+        else status = "green";
+      }
+
+      return {
+        warehouse_name,
+        item_id: item.item_id,
+        name: item.name,
+        quantity: item.quantity,
+        status,
+      };
+    });
+
+    console.log(
+      `✅ /inventory-status returned ${result.length} items for ${user.username} (${user.warehouse_name})`
+    );
+    res.json(result);
+  } catch (err) {
+    console.error("❌ Failed to load inventory:", err);
+    res.status(500).json({ error: "Failed to load inventory data" });
+  }
+});
 
 // ✅ Start server
 app.get("/", (req, res) => res.redirect("/login.html"));
