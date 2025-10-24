@@ -145,26 +145,25 @@ app.get("/tickets", async (req, res) => {
   res.json(filtered);
 });
 
-// ✅ Update quantities with auto-ticket for production
-app.post("/update-quantities", requireAdmin, async (req, res) => {
-  try {
-    const updates = req.body;
-    const warehouses = await readJson(WAREHOUSE_FILE);
-    const items = await readJson(ITEM_FILE);
-    const tickets = await readJson(TICKET_FILE);
-
-    const mainWarehouseId = 1;
-
-    for (const update of updates) {
-      const warehouseObj = warehouses.find(w => w.name === update.warehouse_name);
-      if (!warehouseObj) continue;
-
-      const item = items.find(i => i.item_id === update.item_id && i.warehouse_id === warehouseObj.id);
-      if (!item) continue;
-
-      const oldQty = item.quantity;
-      item.quantity = parseInt(update.quantity);
-
+// 🧠 Auto-create ticket to Production if Main WH stock is RED
+if (item.warehouse_id === 1 && status === "red") {
+  const existing = tickets.find(
+    (t) => t.item_id === item.item_id && t.status === "open"
+  );
+  if (!existing) {
+    const ticket = {
+      id: Date.now(),
+      from: "Main Warehouse",
+      to: "Production",
+      item_id: item.item_id,
+      quantity: item.quantity,
+      status: "open",
+    };
+    tickets.push(ticket);
+    await writeJson(TICKET_FILE, tickets);
+    console.log("🛠️ Auto-ticket sent to Production:", ticket);
+  }
+}
       // 🧠 If stock is low in main warehouse, create ticket to Production
       if (
         warehouseObj.id === mainWarehouseId &&
