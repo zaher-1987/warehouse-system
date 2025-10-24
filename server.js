@@ -116,14 +116,6 @@ app.get("/items", async (req, res) => {
 
   const items = await readJson(ITEM_FILE);
   const warehouses = await readJson(WAREHOUSE_FILE);
-  
-app.get("/tickets", async (req, res) => {
-  const user = req.session.user;
-  if (!user) return res.status(403).json([]);
-
-  const tickets = await readJson(TICKET_FILE);
-  res.json(tickets);
-});
 
   // Main warehouse (ID 1) and Admins can see all
   if (user.warehouse_id === 1 || user.role === "admin") {
@@ -145,80 +137,27 @@ app.get("/tickets", async (req, res) => {
   res.json(filtered);
 });
 
-// 🧠 Auto-create ticket to Production if Main WH stock is RED
-if (item.warehouse_id === 1 && status === "red") {
-  const existing = tickets.find(
-    (t) => t.item_id === item.item_id && t.status === "open"
-  );
-  if (!existing) {
-    const ticket = {
-      id: Date.now(),
-      from: "Main Warehouse",
-      to: "Production",
-      item_id: item.item_id,
-      quantity: item.quantity,
-      status: "open",
-    };
-    tickets.push(ticket);
-    await writeJson(TICKET_FILE, tickets);
-    console.log("🛠️ Auto-ticket sent to Production:", ticket);
-  }
-}
-      // 🧠 If stock is low in main warehouse, create ticket to Production
-      if (
-        warehouseObj.id === mainWarehouseId &&
-        item.quantity <= 60 &&
-        !tickets.find(t => t.item_id === item.item_id && t.status === "Pending")
-      ) {
-        const newTicket = {
-          id: Date.now(),
-          from_warehouse: "Main Warehouse",
-          to_warehouse: "Production",
-          item_id: item.item_id,
-          name: item.name,
-          quantity: 100, // You can adjust logic later
-          request_date: new Date().toISOString(),
-          collect_date: "",
-          status: "Pending",
-          expected_ready: "",
-          actual_ready: "",
-          delay_reason: "",
-          updated_at: new Date().toISOString(),
-          created_by: req.session.user?.username || "system",
-        };
-        tickets.push(newTicket);
-        console.log(`🔴 Auto-ticket created for ${item.item_id} → Production`);
-      }
-    }
+// ✅ Tickets
+app.get("/tickets", async (req, res) => {
+  const user = req.session.user;
+  if (!user) return res.status(403).json([]);
 
-    await writeJson(ITEM_FILE, items);
-    await writeJson(TICKET_FILE, tickets);
-
-    console.log(`✅ Updated ${updates.length} item quantities.`);
-    res.json({ success: true });
-  } catch (err) {
-    console.error("❌ Failed to update quantities:", err);
-    res.status(500).json({ success: false, message: "Error updating items" });
-  }
+  const tickets = await readJson(TICKET_FILE);
+  res.json(tickets);
 });
+
+// ✅ Inventory Status + Auto Ticket Logic for Production
 app.get("/inventory-status", async (req, res) => {
   try {
     const user = req.session.user;
     if (!user) return res.status(403).json({ error: "Not authenticated" });
 
     const items = await readJson(ITEM_FILE);
+    const tickets = await readJson(TICKET_FILE);
     const warehouses = await readJson(WAREHOUSE_FILE);
-    const mainWarehouse = warehouses.find((w) => w.id === 1);
+    let updated = false;
 
-    if (!mainWarehouse) return res.json([]);
-
-    // Main Warehouse (ID 1) or Admin can see all
-    const visibleItems =
-      user.warehouse_id === 1 || user.role === "admin"
-        ? items
-        : items.filter((i) => i.warehouse_id === user.warehouse_id);
-
-    const result = visibleItems.map((item) => {
+    const result = items.map((item) => {
       const warehouse = warehouses.find((w) => w.id === item.warehouse_id);
       const warehouse_name = warehouse ? warehouse.name : "Unknown";
 
@@ -234,11 +173,29 @@ app.get("/inventory-status", async (req, res) => {
           else status = "green";
         }
       } else {
-        // 🔁 Check if Main Warehouse item is below safe threshold
-        const percent = item.quantity / 1000; // assuming 1000 is safe baseline
+        const percent = item.quantity / 1000;
         if (percent <= 0.1) status = "red";
         else if (percent <= 0.6) status = "orange";
         else status = "green";
+
+        // 🧠 Auto-ticket to Production if stock is RED and no open ticket exists
+        const hasTicket = tickets.some(
+          (t) => t.item_id === item.item_id && t.to === "Production" && t.status === "open"
+        );
+        if (status === "red" && !hasTicket) {
+          const ticket = {
+            id: Date.now(),
+            from: "Main Warehouse",
+            to: "Production",
+            item_id: item.item_id,
+            quantity: item.quantity,
+            status: "open",
+            created_at: new Date().toISOString(),
+          };
+          tickets.push(ticket);
+          updated = true;
+          console.log("🛠️ Auto-ticket sent to Production:", ticket);
+        }
       }
 
       return {
@@ -250,9 +207,7 @@ app.get("/inventory-status", async (req, res) => {
       };
     });
 
-    console.log(
-      `✅ /inventory-status returned ${result.length} items for ${user.username} (${user.warehouse_name})`
-    );
+    if (updated) await writeJson(TICKET_FILE, tickets);
     res.json(result);
   } catch (err) {
     console.error("❌ Failed to load inventory:", err);
