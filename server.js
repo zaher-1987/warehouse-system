@@ -117,6 +117,7 @@ app.get("/items", async (req, res) => {
   const items = await readJson(ITEM_FILE);
   const warehouses = await readJson(WAREHOUSE_FILE);
 
+  // Main warehouse (ID 1) and Admins can see all
   if (user.warehouse_id === 1 || user.role === "admin") {
     const enriched = items.map((item) => {
       const warehouse = warehouses.find((w) => w.id === item.warehouse_id);
@@ -125,6 +126,7 @@ app.get("/items", async (req, res) => {
     return res.json(enriched);
   }
 
+  // Other warehouse users only see their own
   const filtered = items
     .filter((i) => i.warehouse_id === user.warehouse_id)
     .map((item) => {
@@ -135,67 +137,10 @@ app.get("/items", async (req, res) => {
   res.json(filtered);
 });
 
-// ✅ Update quantities + Auto-ticket to Production if Main Warehouse RED
-app.post("/update-quantities", requireAdmin, async (req, res) => {
-  try {
-    const updates = req.body;
-    const warehouses = await readJson(WAREHOUSE_FILE);
-    const items = await readJson(ITEM_FILE);
-    const tickets = await readJson(TICKET_FILE);
+// ✅ Start server
+app.get("/", (req, res) => res.redirect("/login.html"));
 
-    for (const update of updates) {
-      const warehouseObj = warehouses.find(w => w.name === update.warehouse_name);
-      if (!warehouseObj) continue;
-
-      const item = items.find(i => i.item_id === update.item_id && i.warehouse_id === warehouseObj.id);
-      if (!item) continue;
-
-      item.quantity = parseInt(update.quantity);
-
-      // ✅ Recalculate status
-      let status = "green";
-      const percent = (item.quantity / 1000) * 100; // default safe quantity 1000
-      if (percent <= 60) status = "orange";
-      if (percent <= 10) status = "red";
-
-      // ✅ Auto-create ticket to Production
-      const fromWh = warehouseObj.name;
-      if (fromWh === "Main Warehouse" && status === "red") {
-        const duplicate = tickets.find(t =>
-          t.from_warehouse === "Main Warehouse" &&
-          t.to_warehouse === "Production" &&
-          t.item_id === item.item_id &&
-          t.status === "Pending"
-        );
-        if (!duplicate) {
-          const newTicket = {
-            id: Date.now(),
-            from_warehouse: "Main Warehouse",
-            to_warehouse: "Production",
-            item_id: item.item_id,
-            name: item.name,
-            quantity: 300,
-            request_date: new Date().toISOString(),
-            collect_date: "",
-            status: "Pending",
-            expected_ready: "",
-            actual_ready: "",
-            delay_reason: "",
-            updated_at: new Date().toISOString(),
-            created_by: req.session.user?.username || "system"
-          };
-          tickets.push(newTicket);
-          console.log("🎯 Auto-ticket to Production:", newTicket);
-        }
-      }
-    }
-
-    await writeJson(ITEM_FILE, items);
-    await writeJson(TICKET_FILE, tickets);
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error("❌ Failed to update quantities:", err);
-    res.status(500).json({ success: false, message: "Error updating items" });
-  }
+// ✅ Run server
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
