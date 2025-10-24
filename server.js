@@ -145,37 +145,23 @@ app.post("/update-quantities", requireAdmin, async (req, res) => {
     const items = await readJson(ITEM_FILE);
     const tickets = await readJson(TICKET_FILE);
 
-    for (const update of updates) {
-      const warehouse = warehouses.find((w) => w.name === update.warehouse_name);
-      if (!warehouse) continue;
+    const mainWarehouseId = 1;
 
-      const item = items.find(
-        (i) => i.item_id === update.item_id && i.warehouse_id === warehouse.id
-      );
+    for (const update of updates) {
+      const warehouseObj = warehouses.find(w => w.name === update.warehouse_name);
+      if (!warehouseObj) continue;
+
+      const item = items.find(i => i.item_id === update.item_id && i.warehouse_id === warehouseObj.id);
       if (!item) continue;
 
+      const oldQty = item.quantity;
       item.quantity = parseInt(update.quantity);
 
-      // Recalculate stock status
-      const safe_quantity = item.safe_quantity || 1000;
-      const percent = (item.quantity / safe_quantity) * 100;
-
-      let status = "green";
-      if (percent <= 10) status = "red";
-      else if (percent <= 60) status = "orange";
-      item.status = status;
-
-      // ✅ Auto-ticket for Production if Main Warehouse and status = red
+      // 🧠 If stock is low in main warehouse, create ticket to Production
       if (
-        warehouse.name === "Main Warehouse" &&
-        status === "red" &&
-        !tickets.find(
-          (t) =>
-            t.from_warehouse === "Main Warehouse" &&
-            t.to_warehouse === "Production" &&
-            t.item_id === item.item_id &&
-            t.status === "open"
-        )
+        warehouseObj.id === mainWarehouseId &&
+        item.quantity <= 60 &&
+        !tickets.find(t => t.item_id === item.item_id && t.status === "Pending")
       ) {
         const newTicket = {
           id: Date.now(),
@@ -183,10 +169,10 @@ app.post("/update-quantities", requireAdmin, async (req, res) => {
           to_warehouse: "Production",
           item_id: item.item_id,
           name: item.name,
-          quantity: item.quantity,
+          quantity: 100, // You can adjust logic later
           request_date: new Date().toISOString(),
           collect_date: "",
-          status: "open",
+          status: "Pending",
           expected_ready: "",
           actual_ready: "",
           delay_reason: "",
@@ -194,7 +180,7 @@ app.post("/update-quantities", requireAdmin, async (req, res) => {
           created_by: req.session.user?.username || "system",
         };
         tickets.push(newTicket);
-        console.log("🎫 Auto-created ticket to Production:", newTicket);
+        console.log(`🔴 Auto-ticket created for ${item.item_id} → Production`);
       }
     }
 
