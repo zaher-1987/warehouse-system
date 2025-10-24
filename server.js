@@ -137,6 +137,78 @@ app.get("/items", async (req, res) => {
   res.json(filtered);
 });
 
+// ✅ Update quantities with auto-ticket for production
+app.post("/update-quantities", requireAdmin, async (req, res) => {
+  try {
+    const updates = req.body;
+    const warehouses = await readJson(WAREHOUSE_FILE);
+    const items = await readJson(ITEM_FILE);
+    const tickets = await readJson(TICKET_FILE);
+
+    for (const update of updates) {
+      const warehouse = warehouses.find((w) => w.name === update.warehouse_name);
+      if (!warehouse) continue;
+
+      const item = items.find(
+        (i) => i.item_id === update.item_id && i.warehouse_id === warehouse.id
+      );
+      if (!item) continue;
+
+      item.quantity = parseInt(update.quantity);
+
+      // Recalculate stock status
+      const safe_quantity = item.safe_quantity || 1000;
+      const percent = (item.quantity / safe_quantity) * 100;
+
+      let status = "green";
+      if (percent <= 10) status = "red";
+      else if (percent <= 60) status = "orange";
+      item.status = status;
+
+      // ✅ Auto-ticket for Production if Main Warehouse and status = red
+      if (
+        warehouse.name === "Main Warehouse" &&
+        status === "red" &&
+        !tickets.find(
+          (t) =>
+            t.from_warehouse === "Main Warehouse" &&
+            t.to_warehouse === "Production" &&
+            t.item_id === item.item_id &&
+            t.status === "open"
+        )
+      ) {
+        const newTicket = {
+          id: Date.now(),
+          from_warehouse: "Main Warehouse",
+          to_warehouse: "Production",
+          item_id: item.item_id,
+          name: item.name,
+          quantity: item.quantity,
+          request_date: new Date().toISOString(),
+          collect_date: "",
+          status: "open",
+          expected_ready: "",
+          actual_ready: "",
+          delay_reason: "",
+          updated_at: new Date().toISOString(),
+          created_by: req.session.user?.username || "system",
+        };
+        tickets.push(newTicket);
+        console.log("🎫 Auto-created ticket to Production:", newTicket);
+      }
+    }
+
+    await writeJson(ITEM_FILE, items);
+    await writeJson(TICKET_FILE, tickets);
+
+    console.log(`✅ Updated ${updates.length} item quantities.`);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ Failed to update quantities:", err);
+    res.status(500).json({ success: false, message: "Error updating items" });
+  }
+});
+
 // ✅ Start server
 app.get("/", (req, res) => res.redirect("/login.html"));
 
