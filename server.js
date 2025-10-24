@@ -116,6 +116,14 @@ app.get("/items", async (req, res) => {
 
   const items = await readJson(ITEM_FILE);
   const warehouses = await readJson(WAREHOUSE_FILE);
+  
+app.get("/tickets", async (req, res) => {
+  const user = req.session.user;
+  if (!user) return res.status(403).json([]);
+
+  const tickets = await readJson(TICKET_FILE);
+  res.json(tickets);
+});
 
   // Main warehouse (ID 1) and Admins can see all
   if (user.warehouse_id === 1 || user.role === "admin") {
