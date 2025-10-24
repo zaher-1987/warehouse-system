@@ -29,4 +29,5 @@
   { "item_id": "KIDYEA60", "name": "KIDNEY", "warehouse_id": 5, "quantity": 170 },
   { "item_id": "MFIP0001", "name": "EIDD", "warehouse_id": 5, "quantity": 98 },
   { "item_id": "SPP45MG", "name": "PINK", "warehouse_id": 5, "quantity": 110 }
+  { "item_id": "zaher899012", "name": "Test Product ", "warehouse_id": 6, "quantity": 10 }
 ]
