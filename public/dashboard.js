@@ -12,15 +12,6 @@ async function checkSession() {
   userRole = data.user.role;
   assignedWarehouse = data.user.warehouse_name || '';
 
-  document.getElementById('editToggle').addEventListener('click', () => {
-    editMode = !editMode;
-    document.getElementById('editToggle').textContent = editMode ? '🔒 Disable Edit Mode' : '✏️ Enable Edit Mode';
-    document.getElementById('saveQuantitiesBtn').style.display = editMode ? 'inline-block' : 'none';
-    loadInventory();
-  });
-
-  document.getElementById('saveQuantitiesBtn').addEventListener('click', saveEditedQuantities);
-
   const ticketsBtn = document.getElementById('viewTicketsBtn');
   if (userRole === 'production') {
     ticketsBtn.href = '/production-view.html';
@@ -149,9 +140,9 @@ async function loadInventory() {
 // ✅ Edit mode toggle
 function toggleEdit() {
   editMode = !editMode;
-  document.getElementById('editToggle').textContent = editMode ? '💾 Disable Edit Mode' : '✏️ Enable Edit Mode';
+  document.getElementById('editToggle').textContent = editMode ? '🔒 Disable Edit Mode' : '✏️ Enable Edit Mode';
+  document.getElementById('saveQuantitiesBtn').style.display = editMode ? 'inline-block' : 'none';
   loadInventory();
-  alert(editMode ? 'Edit mode enabled. You can now edit quantities.' : 'Edit mode disabled.');
 }
 
 // ✅ Create new warehouse
@@ -217,6 +208,7 @@ window.addEventListener('DOMContentLoaded', () => {
   checkSession();
 
   document.getElementById('editToggle')?.addEventListener('click', toggleEdit);
+  document.getElementById('saveQuantitiesBtn')?.addEventListener('click', saveEditedQuantities);
   document.getElementById('createWarehouseBtn')?.addEventListener('click', () => {
     const div = document.getElementById('createWarehouseContainer');
     div.style.display = div.style.display === 'none' ? 'block' : 'none';
