@@ -1,204 +1,119 @@
-// 📁 public/dashboard.js
-let editMode = false;
-let userRole = 'staff';
-let assignedWarehouse = '';
+// ✅ Wix integration: SKU → warehouse mapping + stock deduction + auto-ticketing
+import wixPaymentProviderBackend from 'wix-payment-provider-backend';
+import { ok, badRequest } from 'wix-http-functions';
+import wixSecretsBackend from 'wix-secrets-backend';
+import { createClient, OAuthStrategy } from '@wix/sdk';
+import { products } from '@wix/stores';
+import { writeFile, readFile } from 'fs/promises';
 
-// ✅ Session check
-async function checkSession() {
-  const res = await fetch('/session-status');
-  const data = await res.json();
-  if (!data.loggedIn) return (window.location.href = '/login.html');
+const WAREHOUSE_JSON = 'data/warehouses.json';
+const ITEMS_JSON = 'data/items.json';
+const TICKETS_JSON = 'data/tickets.json';
 
-  userRole = data.user.role;
-  assignedWarehouse = data.user.warehouse_name || '';
+const client = createClient({
+  modules: { products },
+  auth: OAuthStrategy({ clientId: 'c2ff93e9-a205-4993-a48c-b67bfa55fb1a' }),
+});
 
-  document.getElementById('editToggle').addEventListener('click', () => {
-    editMode = !editMode;
-    document.getElementById('editToggle').textContent = editMode ? '🔒 Disable Edit Mode' : '✏️ Enable Edit Mode';
-    document.getElementById('saveQuantitiesBtn').style.display = editMode ? 'inline-block' : 'none';
-    loadInventory();
-  });
-
-  document.getElementById('saveQuantitiesBtn').addEventListener('click', saveEditedQuantities);
-
-  const ticketsBtn = document.getElementById('viewTicketsBtn');
-  if (userRole === 'production') {
-    ticketsBtn.href = '/production-view.html';
-  } else if (userRole === 'admin') {
-    ticketsBtn.href = '/ticket-view.html';
-    document.getElementById('editToggle').style.display = 'inline-block';
-    document.getElementById('createWarehouseBtn').style.display = 'inline-block';
-    document.getElementById('sendStockSection').style.display = 'block';
+async function readJson(file) {
+  try {
+    const data = await readFile(file, 'utf-8');
+    return JSON.parse(data);
+  } catch {
+    return [];
   }
-  ticketsBtn.style.display = 'inline-block';
-
-  await populateDropdowns();
-  await loadInventory();
+}
+async function writeJson(file, data) {
+  await writeFile(file, JSON.stringify(data, null, 2));
 }
 
-// ✅ Save Edited Quantities (global)
-function saveEditedQuantities() {
-  const rows = document.querySelectorAll('#inventoryTable tbody tr');
-  const updates = [];
+// ✅ Webhook for order sync
+export async function post_orderWebhook(request) {
+  try {
+    const raw = await request.body.text();
+    const order = JSON.parse(raw);
+    console.log('🛒 Order webhook received:', order);
 
-  rows.forEach(row => {
-    const warehouse = row.children[0].textContent;
-    const item_id = row.children[1].textContent;
-    const quantity = row.children[3].textContent.trim();
-
-    updates.push({ warehouse_name: warehouse, item_id, quantity });
-  });
-
-  fetch('/update-quantities', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(updates)
-  })
-    .then(res => res.json())
-    .then(data => {
-      if (data.success) {
-        alert('✅ Inventory quantities saved successfully!');
-        loadInventory(); // Refresh
-      } else {
-        alert('❌ Failed to save inventory.');
+    const skus = [];
+    order.lineItems?.forEach((item) => {
+      if (item.sku && item.quantity) {
+        skus.push({ sku: item.sku, qty: item.quantity });
       }
     });
-}
 
-// ✅ Populate filter and target dropdowns
-async function populateDropdowns() {
-  const warehouseDropdown = document.getElementById('targetWarehouseDropdown');
-  const filterDropdown = document.getElementById('warehouseFilter');
-  const res = await fetch('/warehouses');
-  const warehouses = await res.json();
+    if (skus.length === 0) return ok({ msg: 'No SKUs to process' });
 
-  warehouseDropdown.innerHTML = '<option value="">Select warehouse</option>';
-  filterDropdown.innerHTML = '<option value="">All</option>';
+    const items = await readJson(ITEMS_JSON);
+    const warehouses = await readJson(WAREHOUSE_JSON);
+    const mainWarehouse = warehouses.find(w => w.name.toLowerCase().includes('main'));
+    const tickets = await readJson(TICKETS_JSON);
 
-  warehouses.forEach(w => {
-    if (w.name !== 'Main Warehouse') {
-      warehouseDropdown.innerHTML += `<option value="${w.name}">${w.name}</option>`;
+    for (const { sku, qty } of skus) {
+      const targetItem = items.find(i => i.item_id === sku && i.warehouse_id === 6); // India warehouse
+
+      if (!targetItem) {
+        // Auto-create if missing
+        const mainItem = items.find(i => i.item_id === sku && i.warehouse_id === mainWarehouse?.id);
+        if (mainItem) {
+          items.push({
+            item_id: sku,
+            name: mainItem.name,
+            quantity: 0,
+            warehouse_id: 6
+          });
+        }
+        continue;
+      }
+
+      // Deduct stock
+      targetItem.quantity -= qty;
+      if (targetItem.quantity < 0) targetItem.quantity = 0;
+
+      // Auto-ticket if stock low
+      const mainItem = items.find(i => i.item_id === sku && i.warehouse_id === mainWarehouse?.id);
+      if (mainItem && mainItem.quantity > 0) {
+        const percent = (targetItem.quantity / mainItem.quantity) * 100;
+        if (percent <= 60) {
+          const newTicket = {
+            id: Date.now(),
+            from_warehouse: mainWarehouse?.name,
+            to_warehouse: 'India',
+            item_id: sku,
+            name: targetItem.name,
+            quantity: Math.ceil(mainItem.quantity / 10),
+            request_date: new Date().toISOString(),
+            collect_date: '',
+            status: 'Pending',
+            expected_ready: '',
+            actual_ready: '',
+            delay_reason: '',
+            updated_at: new Date().toISOString(),
+            created_by: 'auto-wix-order'
+          };
+          tickets.push(newTicket);
+          console.log('🎫 Auto-created ticket:', newTicket);
+        }
+      }
     }
-    filterDropdown.innerHTML += `<option value="${w.name}">${w.name}</option>`;
-  });
-}
 
-// ✅ Load filtered inventory (with console log for debugging)
-async function loadInventory() {
-  const res = await fetch('/inventory-status');
-  const data = await res.json();
+    await writeJson(ITEMS_JSON, items);
+    await writeJson(TICKETS_JSON, tickets);
 
-  console.log('📦 Raw inventory data from server:', data);
-
-  const tbody = document.querySelector('#inventoryTable tbody');
-  const selectedWarehouse = document.getElementById('warehouseFilter').value;
-
-  tbody.innerHTML = '';
-
-  const filtered = selectedWarehouse
-    ? data.filter(i => i.warehouse_name === selectedWarehouse)
-    : data;
-
-  console.log('🔎 Filtered inventory for warehouse:', selectedWarehouse || 'All', filtered);
-
-  if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5">No inventory items found.</td></tr>`;
-    return;
-  }
-
-  filtered.forEach(item => {
-    const tr = document.createElement('tr');
-    tr.classList.add(item.status || 'unknown');
-    const statusIcon =
-      item.status === 'green' ? '✅' :
-      item.status === 'orange' ? '⚠️' :
-      item.status === 'red' ? '❌' : '❓';
-    tr.innerHTML = `
-      <td>${item.warehouse_name}</td>
-      <td>${item.item_id}</td>
-      <td>${item.name}</td>
-      <td class="${editMode ? 'edit-cell' : ''}" contenteditable="${editMode}">${item.quantity}</td>
-      <td>${statusIcon}</td>`;
-    tbody.appendChild(tr);
-  });
-}
-
-// ✅ Edit mode toggle
-function toggleEdit() {
-  editMode = !editMode;
-  document.getElementById('editToggle').textContent = editMode ? '💾 Disable Edit Mode' : '✏️ Enable Edit Mode';
-  loadInventory();
-  alert(editMode ? 'Edit mode enabled. You can now edit quantities.' : 'Edit mode disabled.');
-}
-
-// ✅ Create new warehouse
-async function createWarehouse() {
-  const name = document.getElementById('newWarehouseInput').value.trim();
-  if (!name) return alert('❌ Enter warehouse name.');
-
-  const res = await fetch('/add-warehouse', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name })
-  });
-  const result = await res.json();
-  if (result.success) {
-    alert('✅ Warehouse created.');
-    document.getElementById('newWarehouseInput').value = '';
-    document.getElementById('createWarehouseContainer').style.display = 'none';
-    await populateDropdowns();
-    await loadInventory();
-  } else {
-    alert('❌ ' + result.message);
+    return ok({ success: true });
+  } catch (err) {
+    console.error('❌ Error processing order webhook:', err);
+    return badRequest({ error: 'Webhook failed' });
   }
 }
 
-// ✅ Send stock
-async function sendStock() {
-  const targetWarehouse = document.getElementById('targetWarehouseDropdown').value;
-  const item_id = document.getElementById('productDropdown').value;
-  const quantity = parseInt(document.getElementById('stockQuantity').value);
-  const request_date = document.getElementById('requestDate').value;
-  const collect_date = document.getElementById('collectDate').value;
-
-  if (!targetWarehouse || !item_id || !quantity || !request_date || !collect_date)
-    return alert('❌ Fill all fields before sending stock.');
-
-  const res = await fetch('/send-stock', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from: 'Main Warehouse', to: targetWarehouse, item_id, quantity, request_date, collect_date })
-  });
-  const result = await res.json();
-  if (result.success) {
-    alert('✅ Stock sent.');
-    await loadInventory();
-  } else {
-    alert('❌ Failed: ' + result.message);
+// 🛒 Get Wix products
+export async function get_wix_products(request) {
+  try {
+    const result = await client.products.queryProducts().find();
+    console.log('🧾 Wix products:', result.items);
+    return ok({ products: result.items });
+  } catch (error) {
+    console.error('❌ Error fetching products:', error);
+    return badRequest({ error: 'Failed to fetch products' });
   }
 }
-
-// ✅ Utility actions
-function exportInventory() {
-  window.location.href = '/export-inventory';
-}
-function openChartModal() {
-  document.getElementById('chartModal').style.display = 'block';
-}
-function closeChartModal() {
-  document.getElementById('chartModal').style.display = 'none';
-}
-
-// ✅ Bind UI
-window.addEventListener('DOMContentLoaded', () => {
-  checkSession();
-
-  document.getElementById('editToggle')?.addEventListener('click', toggleEdit);
-  document.getElementById('createWarehouseBtn')?.addEventListener('click', () => {
-    const div = document.getElementById('createWarehouseContainer');
-    div.style.display = div.style.display === 'none' ? 'block' : 'none';
-  });
-
-  document.getElementById('saveWarehouseBtn')?.addEventListener('click', createWarehouse);
-  document.getElementById('warehouseFilter')?.addEventListener('change', loadInventory);
-});
