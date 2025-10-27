@@ -3,12 +3,12 @@ const bodyParser = require("body-parser");
 const session = require("express-session");
 const fs = require("fs").promises;
 const path = require("path");
-const fetch = require("node-fetch"); // ✅ added fetch for Easystore API
+const fetch = require("node-fetch"); // ✅ for EasyStore API
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ✅ Easystore credentials
+// ✅ EasyStore credentials
 const EASYSTORE_API_TOKEN = "ca4957c4d543cf68756f98f3e3cace52";
 
 // ✅ Middleware
@@ -181,7 +181,10 @@ app.get("/inventory-status", async (req, res) => {
         else status = "green";
 
         const hasTicket = tickets.some(
-          (t) => t.item_id === item.item_id && t.to === "Production" && t.status === "open"
+          (t) =>
+            t.item_id === item.item_id &&
+            t.to === "Production" &&
+            t.status === "open"
         );
         if (status === "red" && !hasTicket) {
           const ticket = {
@@ -216,20 +219,28 @@ app.get("/inventory-status", async (req, res) => {
   }
 });
 
-// ✅ Test Easystore API connection
+// ✅ EasyStore Products API Connection (Fixed)
 app.get("/easystore/products", async (req, res) => {
   try {
-    const response = await fetch("https://api.easystore.co/api/v3.0/products.json", {
+    const response = await fetch("https://api.easystore.co/v1/products", {
       headers: {
         Authorization: `Bearer ${EASYSTORE_API_TOKEN}`,
-        "Content-Type": "application/json",
+        Accept: "application/json",
       },
     });
+
     const data = await response.json();
+
+    if (!response.ok) {
+      console.error("❌ EasyStore API error:", data);
+      return res.status(response.status).json({ error: data });
+    }
+
+    console.log(`✅ Synced ${data.length || 0} products from EasyStore`);
     res.json(data);
   } catch (err) {
-    console.error("❌ Error fetching Easystore products:", err);
-    res.status(500).send("Error fetching Easystore products");
+    console.error("❌ Error fetching EasyStore products:", err);
+    res.status(500).send("Error fetching EasyStore products");
   }
 });
 
