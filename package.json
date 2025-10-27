@@ -19,3 +19,6 @@
     "sqlite3": "^5.1.7"
   }
 }
+"dependencies": {
+  "node-fetch": "^2.6.9"
+}
