@@ -224,7 +224,7 @@ app.get("/easystore/products", async (req, res) => {
   try {
     const response = await fetch("https://api.easystore.co/admin/products.json", {
       headers: {
-        Authorization: `Bearer ${EASYSTORE_API_TOKEN}`,
+        Authorization: `Bearer ${ca4957c4d543cf68756f98f3e3cace52}`,
         Accept: "application/json",
       },
     });
