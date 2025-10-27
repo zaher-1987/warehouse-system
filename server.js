@@ -222,7 +222,7 @@ app.get("/inventory-status", async (req, res) => {
 // ✅ EasyStore Products API Connection (Fixed)
 app.get("/easystore/products", async (req, res) => {
   try {
-    const response = await fetch("https://api.easystore.co/v1/products", {
+    const response = await fetch("https://api.easystore.co/admin/products.json", {
       headers: {
         Authorization: `Bearer ${EASYSTORE_API_TOKEN}`,
         Accept: "application/json",
@@ -236,7 +236,7 @@ app.get("/easystore/products", async (req, res) => {
       return res.status(response.status).json({ error: data });
     }
 
-    console.log(`✅ Synced ${data.length || 0} products from EasyStore`);
+    console.log(`✅ Synced ${data.products?.length || 0} products from EasyStore`);
     res.json(data);
   } catch (err) {
     console.error("❌ Error fetching EasyStore products:", err);
