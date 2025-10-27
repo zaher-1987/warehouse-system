@@ -223,7 +223,7 @@ app.get("/inventory-status", async (req, res) => {
 
 // Step 1: Redirect user to EasyStore OAuth authorization
 app.get("/easystore/install", (req, res) => {
-  const url = `https://accounts.easystore.co/oauth/authorize?client_id=${EASYSTORE_APP_ID}&redirect_uri=${encodeURIComponent(
+  const url = `https://accounts.easystore.com/oauth/authorize?client_id=${EASYSTORE_APP_ID}&redirect_uri=${encodeURIComponent(
     REDIRECT_URI
   )}&response_type=code`;
   console.log("🔗 Redirecting to EasyStore:", url);
