@@ -9,8 +9,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ✅ EasyStore credentials
-const EASYSTORE_APP_ID = "app56223ac627daadd8";
-const EASYSTORE_APP_SECRET = "f4081a59e248d3d2b5e7e830daff3e62";
+const EASYSTORE_APP_ID = "appe3090e21ad3f0b0e";
+const EASYSTORE_APP_SECRET = "d1da7c818f5eb0787192f7f250073fae";
 const REDIRECT_URI = "https://warehouse-system-1.onrender.com/easystore/callback";
 let easystoreAccessToken = null; // Will be set after OAuth success
 
