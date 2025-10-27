@@ -3,9 +3,13 @@ const bodyParser = require("body-parser");
 const session = require("express-session");
 const fs = require("fs").promises;
 const path = require("path");
+const fetch = require("node-fetch"); // ✅ added fetch for Easystore API
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// ✅ Easystore credentials
+const EASYSTORE_API_TOKEN = "ca4957c4d543cf68756f98f3e3cace52";
 
 // ✅ Middleware
 app.use(bodyParser.json());
@@ -117,7 +121,6 @@ app.get("/items", async (req, res) => {
   const items = await readJson(ITEM_FILE);
   const warehouses = await readJson(WAREHOUSE_FILE);
 
-  // Main warehouse (ID 1) and Admins can see all
   if (user.warehouse_id === 1 || user.role === "admin") {
     const enriched = items.map((item) => {
       const warehouse = warehouses.find((w) => w.id === item.warehouse_id);
@@ -126,7 +129,6 @@ app.get("/items", async (req, res) => {
     return res.json(enriched);
   }
 
-  // Other warehouse users only see their own
   const filtered = items
     .filter((i) => i.warehouse_id === user.warehouse_id)
     .map((item) => {
@@ -178,7 +180,6 @@ app.get("/inventory-status", async (req, res) => {
         else if (percent <= 0.6) status = "orange";
         else status = "green";
 
-        // 🧠 Auto-ticket to Production if stock is RED and no open ticket exists
         const hasTicket = tickets.some(
           (t) => t.item_id === item.item_id && t.to === "Production" && t.status === "open"
         );
@@ -212,6 +213,23 @@ app.get("/inventory-status", async (req, res) => {
   } catch (err) {
     console.error("❌ Failed to load inventory:", err);
     res.status(500).json({ error: "Failed to load inventory data" });
+  }
+});
+
+// ✅ Test Easystore API connection
+app.get("/easystore/products", async (req, res) => {
+  try {
+    const response = await fetch("https://api.easystore.co/api/v3.0/products.json", {
+      headers: {
+        Authorization: `Bearer ${EASYSTORE_API_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+    });
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    console.error("❌ Error fetching Easystore products:", err);
+    res.status(500).send("Error fetching Easystore products");
   }
 });
 
