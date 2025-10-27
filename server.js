@@ -12,7 +12,7 @@ const PORT = process.env.PORT || 3000;
 const EASYSTORE_APP_ID = "app56223ac627daadd8";
 const EASYSTORE_APP_SECRET = "f4081a59e248d3d2b5e7e830daff3e62";
 const REDIRECT_URI = "https://warehouse-system-1.onrender.com/easystore/callback";
-let easystoreAccessToken = null; // will be set after OAuth success
+let easystoreAccessToken = null; // Will be set after OAuth success
 
 // ✅ Middleware
 app.use(bodyParser.json());
@@ -223,11 +223,17 @@ app.get("/inventory-status", async (req, res) => {
 
 // Step 1: Redirect user to EasyStore OAuth authorization
 app.get("/easystore/install", (req, res) => {
-  const url = `https://easystore.co/oauth/authorize?client_id=${app56223ac627daadd8}&redirect_uri=${encodeURIComponent(
-    REDIRECT_URI
-  )}&response_type=code`;
-  console.log("🔗 Redirecting to EasyStore:", url);
-  res.redirect(url);
+  try {
+    const url = `https://easystore.co/oauth/authorize?client_id=${EASYSTORE_APP_ID}&redirect_uri=${encodeURIComponent(
+      REDIRECT_URI
+    )}&response_type=code`;
+
+    console.log("🔗 Redirecting to EasyStore:", url);
+    res.redirect(url);
+  } catch (err) {
+    console.error("❌ Error building OAuth URL:", err);
+    res.status(500).send("Internal Server Error");
+  }
 });
 
 // Step 2: Handle OAuth callback and exchange code for access token
@@ -236,7 +242,7 @@ app.get("/easystore/callback", async (req, res) => {
   if (!code) return res.status(400).send("❌ Missing authorization code");
 
   try {
-    const response = await fetch("https://accounts.easystore.co/oauth/token", {
+    const response = await fetch("https://easystore.co/oauth/token", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
