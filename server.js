@@ -270,7 +270,7 @@ app.get("/easystore/products", async (req, res) => {
       .send("❌ EasyStore not connected. Please visit /easystore/install first.");
 
   try {
-    const response = await fetch("https://api.easystore.co/api/v3/products.json", {
+    const response = await fetch("https://api.easystore.com/api/v3/products.json", {
       headers: {
         Authorization: `Bearer ${easystoreAccessToken}`,
         Accept: "application/json",
