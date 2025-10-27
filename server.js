@@ -10,6 +10,8 @@ const PORT = process.env.PORT || 3000;
 
 // ✅ EasyStore credentials
 const EASYSTORE_API_TOKEN = "ca4957c4d543cf68756f98f3e3cace52";
+const EASYSTORE_APP_ID = "app56223ac627daadd8";
+const EASYSTORE_APP_SECRET = "f4081a59e248d3d2b5e7e830daff3e62";
 
 // ✅ Middleware
 app.use(bodyParser.json());
@@ -219,12 +221,12 @@ app.get("/inventory-status", async (req, res) => {
   }
 });
 
-// ✅ EasyStore Products API Connection (Fixed)
+// ✅ EasyStore Products API (Correct v3 Endpoint)
 app.get("/easystore/products", async (req, res) => {
   try {
-    const response = await fetch("https://api.easystore.co/admin/products.json", {
+    const response = await fetch("https://api.easystore.co/api/v3/products.json", {
       headers: {
-        Authorization: `Bearer ${ca4957c4d543cf68756f98f3e3cace52}`,
+        Authorization: `Bearer ${EASYSTORE_API_TOKEN}`,
         Accept: "application/json",
       },
     });
