@@ -12,7 +12,7 @@ const PORT = process.env.PORT || 3000;
 const EASYSTORE_APP_ID = "appe3090e21ad3f0b0e";
 const EASYSTORE_APP_SECRET = "d1da7c818f5eb0787192f7f250073fae";
 const REDIRECT_URI = "https://warehouse-system-1.onrender.com/easystore/callback";
-let easystoreAccessToken = null; // Will be set after OAuth success
+let easystoreAccessToken = null;
 
 // ✅ Middleware
 app.use(bodyParser.json());
@@ -26,13 +26,13 @@ app.use(
   })
 );
 
-// ✅ JSON file paths
+// ✅ File paths
 const WAREHOUSE_FILE = "data/warehouses.json";
 const ITEM_FILE = "data/items.json";
 const TICKET_FILE = "data/tickets.json";
 const USERS_FILE = "data/users.json";
 
-// ✅ Helpers
+// ✅ File helpers
 async function readJson(file) {
   try {
     const data = await fs.readFile(file, "utf-8");
@@ -72,10 +72,7 @@ app.post("/login", async (req, res) => {
   res.redirect("/dashboard.html");
 });
 
-app.get("/logout", (req, res) => {
-  req.session.destroy(() => res.redirect("/login.html"));
-});
-
+app.get("/logout", (req, res) => req.session.destroy(() => res.redirect("/login.html")));
 app.get("/session-status", (req, res) => {
   if (req.session.user)
     return res.json({ loggedIn: true, user: req.session.user });
@@ -87,7 +84,7 @@ function requireAdmin(req, res, next) {
   return res.status(403).send("❌ Admins only. <a href='/login.html'>Login</a>");
 }
 
-// ===================== WAREHOUSE ROUTES =====================
+// ===================== WAREHOUSES =====================
 app.get("/warehouses", async (req, res) => {
   const warehouses = await readJson(WAREHOUSE_FILE);
   res.json(warehouses);
@@ -96,20 +93,15 @@ app.get("/warehouses", async (req, res) => {
 app.post("/add-warehouse", requireAdmin, async (req, res) => {
   const { name } = req.body;
   if (!name || !name.trim())
-    return res
-      .status(400)
-      .json({ success: false, message: "Warehouse name required." });
+    return res.status(400).json({ success: false, message: "Warehouse name required." });
 
   const warehouses = await readJson(WAREHOUSE_FILE);
   if (warehouses.find((w) => w.name.toLowerCase() === name.toLowerCase()))
-    return res
-      .status(400)
-      .json({ success: false, message: "Warehouse already exists." });
+    return res.status(400).json({ success: false, message: "Warehouse already exists." });
 
   const newWarehouse = { id: Date.now(), name: name.trim() };
   warehouses.push(newWarehouse);
   await writeJson(WAREHOUSE_FILE, warehouses);
-
   console.log("✅ Added new warehouse:", newWarehouse);
   res.json({ success: true });
 });
@@ -118,7 +110,6 @@ app.post("/add-warehouse", requireAdmin, async (req, res) => {
 app.get("/items", async (req, res) => {
   const user = req.session.user;
   if (!user) return res.status(403).json([]);
-
   const items = await readJson(ITEM_FILE);
   const warehouses = await readJson(WAREHOUSE_FILE);
 
@@ -146,6 +137,72 @@ app.get("/tickets", async (req, res) => {
   if (!user) return res.status(403).json([]);
   const tickets = await readJson(TICKET_FILE);
   res.json(tickets);
+});
+
+// ===================== EASYSTORE =====================
+app.get("/easystore/install", (req, res) => {
+  const url = `https://developers.easystore.co/oauth/authorize?client_id=${EASYSTORE_APP_ID}&redirect_uri=${encodeURIComponent(
+    REDIRECT_URI
+  )}&response_type=code`;
+  console.log("🔗 Redirecting to EasyStore:", url);
+  res.redirect(url);
+});
+
+app.get("/easystore/callback", async (req, res) => {
+  const { code } = req.query;
+  if (!code) return res.status(400).send("❌ Missing code");
+
+  try {
+    const response = await fetch("https://api.easystore.co/oauth/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        client_id: EASYSTORE_APP_ID,
+        client_secret: EASYSTORE_APP_SECRET,
+        code,
+        grant_type: "authorization_code",
+        redirect_uri: REDIRECT_URI,
+      }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(JSON.stringify(data));
+
+    easystoreAccessToken = data.access_token;
+    console.log("✅ Access token received:", easystoreAccessToken);
+    res.redirect("/dashboard.html"); // 🔁 redirect instead of raw HTML
+  } catch (err) {
+    console.error("❌ OAuth Error:", err);
+    res.status(500).send("OAuth failed");
+  }
+});
+
+app.get("/easystore/products", async (req, res) => {
+  if (!easystoreAccessToken)
+    return res
+      .status(401)
+      .send("❌ EasyStore not connected. Please visit /easystore/install first.");
+
+  try {
+    const response = await fetch("https://api.easystore.co/api/v3/products.json", {
+      headers: {
+        Authorization: `Bearer ${easystoreAccessToken}`,
+        Accept: "application/json",
+      },
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      console.error("❌ API error:", data);
+      return res.status(response.status).json(data);
+    }
+
+    console.log(`✅ Synced ${data.products?.length || 0} products`);
+    res.json(data.products || []);
+  } catch (err) {
+    console.error("❌ Fetch error:", err);
+    res.status(500).send("Failed to fetch products");
+  }
 });
 
 // ===================== INVENTORY STATUS =====================
@@ -198,7 +255,7 @@ app.get("/inventory-status", async (req, res) => {
           };
           tickets.push(ticket);
           updated = true;
-          console.log("🛠️ Auto-ticket sent to Production:", ticket);
+          console.log("🛠️ Auto-ticket to Production:", ticket);
         }
       }
 
@@ -214,92 +271,13 @@ app.get("/inventory-status", async (req, res) => {
     if (updated) await writeJson(TICKET_FILE, tickets);
     res.json(result);
   } catch (err) {
-    console.error("❌ Failed to load inventory:", err);
+    console.error("❌ Inventory error:", err);
     res.status(500).json({ error: "Failed to load inventory data" });
-  }
-});
-
-// ===================== EASYSTORE OAUTH =====================
-
-// Step 1: Redirect user to EasyStore OAuth authorization
-app.get("/easystore/install", (req, res) => {
-  try {
-    const url = `https://easystore.co/oauth/authorize?client_id=${EASYSTORE_APP_ID}&redirect_uri=${encodeURIComponent(
-      REDIRECT_URI
-    )}&response_type=code`;
-
-    console.log("🔗 Redirecting to EasyStore:", url);
-    res.redirect(url);
-  } catch (err) {
-    console.error("❌ Error building OAuth URL:", err);
-    res.status(500).send("Internal Server Error");
-  }
-});
-
-// Step 2: Handle OAuth callback and exchange code for access token
-app.get("/easystore/callback", async (req, res) => {
-  const { code } = req.query;
-  if (!code) return res.status(400).send("❌ Missing authorization code");
-
-  try {
-    const response = await fetch("https://easystore.co/oauth/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        client_id: EASYSTORE_APP_ID,
-        client_secret: EASYSTORE_APP_SECRET,
-        code,
-        grant_type: "authorization_code",
-        redirect_uri: REDIRECT_URI,
-      }),
-    });
-
-    const data = await response.json();
-    if (!response.ok) throw new Error(JSON.stringify(data));
-
-    easystoreAccessToken = data.access_token;
-    console.log("✅ EasyStore access token:", easystoreAccessToken);
-    res.send(
-      "✅ EasyStore App connected! Now visit <a href='/easystore/products'>/easystore/products</a>"
-    );
-  } catch (err) {
-    console.error("❌ OAuth Error:", err);
-    res.status(500).send("OAuth exchange failed");
-  }
-});
-
-// Step 3: Use the authorized token to fetch products
-app.get("/easystore/products", async (req, res) => {
-  if (!easystoreAccessToken)
-    return res
-      .status(401)
-      .send("❌ EasyStore not connected. Please visit /easystore/install first.");
-
-  try {
-    const response = await fetch("https://api.easystore.co/api/v3/products.json", {
-      headers: {
-        Authorization: `Bearer ${easystoreAccessToken}`,
-        Accept: "application/json",
-      },
-    });
-
-    const data = await response.json();
-    if (!response.ok) {
-      console.error("❌ EasyStore API error:", data);
-      return res.status(response.status).json(data);
-    }
-
-    console.log(`✅ Synced ${data.products?.length || 0} products from EasyStore`);
-    res.json(data);
-  } catch (err) {
-    console.error("❌ Error fetching EasyStore products:", err);
-    res.status(500).send("Error fetching EasyStore products");
   }
 });
 
 // ===================== SERVER START =====================
 app.get("/", (req, res) => res.redirect("/login.html"));
-
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-});
+app.listen(PORT, () =>
+  console.log(`🚀 Server running on http://localhost:${PORT}`)
+);
